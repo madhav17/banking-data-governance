@@ -1,0 +1,341 @@
+-- =====================================================================
+-- Avidia Bank Take-Home
+-- File: setup/04_base_grants.sql
+-- Purpose:
+--   Establish least-privilege baseline access for the project roles after
+--   roles, warehouse, databases and schemas have been created.
+--
+-- Expected prerequisites:
+--   01_roles.sql
+--   02_warehouse.sql
+--   03_databases_schemas.sql
+--
+-- Expected objects:
+--   Warehouse : WH_GOVERNANCE_XS
+--
+--   RAW.BANKING
+--
+--   ANALYTICS.STAGING
+--   ANALYTICS.MARTS
+--
+--   GOVERNANCE.CATALOG
+--   GOVERNANCE.TAGS
+--   GOVERNANCE.EVIDENCE
+--   GOVERNANCE.DQ
+--
+-- Notes:
+--   * This script intentionally avoids ACCOUNTADMIN for normal grants.
+--   * SECURITYADMIN is used because it owns/controls role grants.
+--   * Feature-specific account privileges for classification, masking,
+--     row-access policies, tasks, etc. should be added in the relevant
+--     implementation scripts instead of over-granting here.
+-- =====================================================================
+
+
+-- =====================================================================
+-- 1. USE SECURITYADMIN FOR GRANT MANAGEMENT
+-- =====================================================================
+
+USE ROLE SECURITYADMIN;
+
+
+-- =====================================================================
+-- 2. WAREHOUSE ACCESS
+-- =====================================================================
+-- Business and engineering roles only need USAGE to run queries.
+-- DATA_PLATFORM_ADMIN receives operational/monitoring capability.
+
+GRANT USAGE ON WAREHOUSE WH_GOVERNANCE_XS TO ROLE DATA_OWNER;
+GRANT USAGE ON WAREHOUSE WH_GOVERNANCE_XS TO ROLE DATA_STEWARD;
+GRANT USAGE ON WAREHOUSE WH_GOVERNANCE_XS TO ROLE DEPOSITS_ANALYST;
+GRANT USAGE ON WAREHOUSE WH_GOVERNANCE_XS TO ROLE BRANCH_HUDSON;
+
+GRANT USAGE ON WAREHOUSE WH_GOVERNANCE_XS TO ROLE DATA_ENGINEER;
+GRANT USAGE ON WAREHOUSE WH_GOVERNANCE_XS TO ROLE DATA_GOVERNANCE_ADMIN;
+GRANT USAGE ON WAREHOUSE WH_GOVERNANCE_XS TO ROLE SVC_PIPELINE;
+
+GRANT USAGE, OPERATE, MONITOR
+    ON WAREHOUSE WH_GOVERNANCE_XS
+    TO ROLE DATA_PLATFORM_ADMIN;
+
+
+-- =====================================================================
+-- 3. DATABASE USAGE
+-- =====================================================================
+
+-- DATA_ENGINEER builds the end-to-end pipeline.
+GRANT USAGE ON DATABASE RAW        TO ROLE DATA_ENGINEER;
+GRANT USAGE ON DATABASE ANALYTICS  TO ROLE DATA_ENGINEER;
+GRANT USAGE ON DATABASE GOVERNANCE TO ROLE DATA_ENGINEER;
+
+-- DATA_GOVERNANCE_ADMIN manages governance controls and metadata.
+GRANT USAGE ON DATABASE RAW        TO ROLE DATA_GOVERNANCE_ADMIN;
+GRANT USAGE ON DATABASE ANALYTICS  TO ROLE DATA_GOVERNANCE_ADMIN;
+GRANT USAGE ON DATABASE GOVERNANCE TO ROLE DATA_GOVERNANCE_ADMIN;
+
+-- SVC_PIPELINE supports automated deployment/execution.
+GRANT USAGE ON DATABASE RAW        TO ROLE SVC_PIPELINE;
+GRANT USAGE ON DATABASE ANALYTICS  TO ROLE SVC_PIPELINE;
+GRANT USAGE ON DATABASE GOVERNANCE TO ROLE SVC_PIPELINE;
+
+-- Business / consumer roles.
+GRANT USAGE ON DATABASE ANALYTICS TO ROLE DATA_OWNER;
+GRANT USAGE ON DATABASE ANALYTICS TO ROLE DATA_STEWARD;
+GRANT USAGE ON DATABASE ANALYTICS TO ROLE DEPOSITS_ANALYST;
+GRANT USAGE ON DATABASE ANALYTICS TO ROLE BRANCH_HUDSON;
+
+
+-- =====================================================================
+-- 4. SCHEMA USAGE
+-- =====================================================================
+
+-- Engineering schemas.
+GRANT USAGE ON SCHEMA RAW.BANKING        TO ROLE DATA_ENGINEER;
+GRANT USAGE ON SCHEMA ANALYTICS.STAGING  TO ROLE DATA_ENGINEER;
+GRANT USAGE ON SCHEMA ANALYTICS.MARTS    TO ROLE DATA_ENGINEER;
+
+-- Governance administrator needs visibility across the governed lifecycle.
+GRANT USAGE ON SCHEMA RAW.BANKING        TO ROLE DATA_GOVERNANCE_ADMIN;
+GRANT USAGE ON SCHEMA ANALYTICS.STAGING  TO ROLE DATA_GOVERNANCE_ADMIN;
+GRANT USAGE ON SCHEMA ANALYTICS.MARTS    TO ROLE DATA_GOVERNANCE_ADMIN;
+
+GRANT USAGE ON SCHEMA GOVERNANCE.CATALOG  TO ROLE DATA_GOVERNANCE_ADMIN;
+GRANT USAGE ON SCHEMA GOVERNANCE.TAGS     TO ROLE DATA_GOVERNANCE_ADMIN;
+GRANT USAGE ON SCHEMA GOVERNANCE.EVIDENCE TO ROLE DATA_GOVERNANCE_ADMIN;
+GRANT USAGE ON SCHEMA GOVERNANCE.DQ       TO ROLE DATA_GOVERNANCE_ADMIN;
+
+-- Pipeline service role.
+GRANT USAGE ON SCHEMA RAW.BANKING         TO ROLE SVC_PIPELINE;
+GRANT USAGE ON SCHEMA ANALYTICS.STAGING   TO ROLE SVC_PIPELINE;
+GRANT USAGE ON SCHEMA ANALYTICS.MARTS     TO ROLE SVC_PIPELINE;
+GRANT USAGE ON SCHEMA GOVERNANCE.CATALOG  TO ROLE SVC_PIPELINE;
+GRANT USAGE ON SCHEMA GOVERNANCE.TAGS     TO ROLE SVC_PIPELINE;
+GRANT USAGE ON SCHEMA GOVERNANCE.EVIDENCE TO ROLE SVC_PIPELINE;
+GRANT USAGE ON SCHEMA GOVERNANCE.DQ       TO ROLE SVC_PIPELINE;
+
+-- Consumer-facing MART schema.
+GRANT USAGE ON SCHEMA ANALYTICS.MARTS TO ROLE DATA_OWNER;
+GRANT USAGE ON SCHEMA ANALYTICS.MARTS TO ROLE DATA_STEWARD;
+GRANT USAGE ON SCHEMA ANALYTICS.MARTS TO ROLE DEPOSITS_ANALYST;
+GRANT USAGE ON SCHEMA ANALYTICS.MARTS TO ROLE BRANCH_HUDSON;
+
+-- Steward can inspect standardized data for business/classification review.
+GRANT USAGE ON SCHEMA ANALYTICS.STAGING TO ROLE DATA_STEWARD;
+
+
+-- =====================================================================
+-- 5. DATA_ENGINEER CREATE PRIVILEGES
+-- =====================================================================
+
+-- RAW ingestion objects.
+GRANT CREATE TABLE,
+      CREATE VIEW,
+      CREATE STAGE,
+      CREATE FILE FORMAT,
+      CREATE PROCEDURE,
+      CREATE TASK
+ON SCHEMA RAW.BANKING
+TO ROLE DATA_ENGINEER;
+
+-- STAGING transformation objects.
+GRANT CREATE TABLE,
+      CREATE VIEW,
+      CREATE PROCEDURE,
+      CREATE TASK
+ON SCHEMA ANALYTICS.STAGING
+TO ROLE DATA_ENGINEER;
+
+-- MART objects, typically created by dbt.
+GRANT CREATE TABLE,
+      CREATE VIEW
+ON SCHEMA ANALYTICS.MARTS
+TO ROLE DATA_ENGINEER;
+
+
+-- =====================================================================
+-- 6. DATA_GOVERNANCE_ADMIN CREATE PRIVILEGES
+-- =====================================================================
+
+GRANT CREATE TABLE,
+      CREATE VIEW,
+      CREATE PROCEDURE,
+      CREATE TASK
+ON SCHEMA GOVERNANCE.CATALOG
+TO ROLE DATA_GOVERNANCE_ADMIN;
+
+GRANT CREATE TAG,
+      CREATE MASKING POLICY,
+      CREATE ROW ACCESS POLICY,
+      CREATE TABLE,
+      CREATE VIEW,
+      CREATE PROCEDURE
+ON SCHEMA GOVERNANCE.TAGS
+TO ROLE DATA_GOVERNANCE_ADMIN;
+
+GRANT CREATE TABLE,
+      CREATE VIEW,
+      CREATE PROCEDURE,
+      CREATE TASK
+ON SCHEMA GOVERNANCE.EVIDENCE
+TO ROLE DATA_GOVERNANCE_ADMIN;
+
+GRANT CREATE TABLE,
+      CREATE VIEW,
+      CREATE FUNCTION,
+      CREATE PROCEDURE,
+      CREATE TASK
+ON SCHEMA GOVERNANCE.DQ
+TO ROLE DATA_GOVERNANCE_ADMIN;
+
+
+-- =====================================================================
+-- 7. SVC_PIPELINE BASE DEPLOYMENT PRIVILEGES
+-- =====================================================================
+-- Keep this role narrower than an administrator.
+-- It can create/deploy data objects used by the automated pipeline.
+
+GRANT CREATE TABLE,
+      CREATE VIEW,
+      CREATE STAGE,
+      CREATE FILE FORMAT,
+      CREATE PROCEDURE,
+      CREATE TASK
+ON SCHEMA RAW.BANKING
+TO ROLE SVC_PIPELINE;
+
+GRANT CREATE TABLE,
+      CREATE VIEW,
+      CREATE PROCEDURE,
+      CREATE TASK
+ON SCHEMA ANALYTICS.STAGING
+TO ROLE SVC_PIPELINE;
+
+GRANT CREATE TABLE,
+      CREATE VIEW
+ON SCHEMA ANALYTICS.MARTS
+TO ROLE SVC_PIPELINE;
+
+
+-- =====================================================================
+-- 8. MART READ ACCESS FOR BUSINESS / CONSUMER ROLES
+-- =====================================================================
+-- Grant both existing and future objects so the script remains useful
+-- when re-run after dbt models have been created.
+
+GRANT SELECT ON ALL TABLES IN SCHEMA ANALYTICS.MARTS TO ROLE DATA_OWNER;
+GRANT SELECT ON ALL VIEWS  IN SCHEMA ANALYTICS.MARTS TO ROLE DATA_OWNER;
+GRANT SELECT ON FUTURE TABLES IN SCHEMA ANALYTICS.MARTS TO ROLE DATA_OWNER;
+GRANT SELECT ON FUTURE VIEWS  IN SCHEMA ANALYTICS.MARTS TO ROLE DATA_OWNER;
+
+GRANT SELECT ON ALL TABLES IN SCHEMA ANALYTICS.MARTS TO ROLE DATA_STEWARD;
+GRANT SELECT ON ALL VIEWS  IN SCHEMA ANALYTICS.MARTS TO ROLE DATA_STEWARD;
+GRANT SELECT ON FUTURE TABLES IN SCHEMA ANALYTICS.MARTS TO ROLE DATA_STEWARD;
+GRANT SELECT ON FUTURE VIEWS  IN SCHEMA ANALYTICS.MARTS TO ROLE DATA_STEWARD;
+
+GRANT SELECT ON ALL TABLES IN SCHEMA ANALYTICS.MARTS TO ROLE DEPOSITS_ANALYST;
+GRANT SELECT ON ALL VIEWS  IN SCHEMA ANALYTICS.MARTS TO ROLE DEPOSITS_ANALYST;
+GRANT SELECT ON FUTURE TABLES IN SCHEMA ANALYTICS.MARTS TO ROLE DEPOSITS_ANALYST;
+GRANT SELECT ON FUTURE VIEWS  IN SCHEMA ANALYTICS.MARTS TO ROLE DEPOSITS_ANALYST;
+
+GRANT SELECT ON ALL TABLES IN SCHEMA ANALYTICS.MARTS TO ROLE BRANCH_HUDSON;
+GRANT SELECT ON ALL VIEWS  IN SCHEMA ANALYTICS.MARTS TO ROLE BRANCH_HUDSON;
+GRANT SELECT ON FUTURE TABLES IN SCHEMA ANALYTICS.MARTS TO ROLE BRANCH_HUDSON;
+GRANT SELECT ON FUTURE VIEWS  IN SCHEMA ANALYTICS.MARTS TO ROLE BRANCH_HUDSON;
+
+
+-- =====================================================================
+-- 9. STAGING READ ACCESS FOR DATA_STEWARD
+-- =====================================================================
+-- Supports classification and business-definition review.
+
+GRANT SELECT ON ALL TABLES IN SCHEMA ANALYTICS.STAGING TO ROLE DATA_STEWARD;
+GRANT SELECT ON ALL VIEWS  IN SCHEMA ANALYTICS.STAGING TO ROLE DATA_STEWARD;
+GRANT SELECT ON FUTURE TABLES IN SCHEMA ANALYTICS.STAGING TO ROLE DATA_STEWARD;
+GRANT SELECT ON FUTURE VIEWS  IN SCHEMA ANALYTICS.STAGING TO ROLE DATA_STEWARD;
+
+
+-- =====================================================================
+-- 10. GOVERNANCE ADMIN READ ACCESS TO DATA LAYERS
+-- =====================================================================
+-- Useful for governance validation, policy-gap checks, metadata verification
+-- and controlled classification/protection testing.
+
+GRANT SELECT ON ALL TABLES IN SCHEMA RAW.BANKING TO ROLE DATA_GOVERNANCE_ADMIN;
+GRANT SELECT ON ALL VIEWS  IN SCHEMA RAW.BANKING TO ROLE DATA_GOVERNANCE_ADMIN;
+GRANT SELECT ON FUTURE TABLES IN SCHEMA RAW.BANKING TO ROLE DATA_GOVERNANCE_ADMIN;
+GRANT SELECT ON FUTURE VIEWS  IN SCHEMA RAW.BANKING TO ROLE DATA_GOVERNANCE_ADMIN;
+
+GRANT SELECT ON ALL TABLES IN SCHEMA ANALYTICS.STAGING TO ROLE DATA_GOVERNANCE_ADMIN;
+GRANT SELECT ON ALL VIEWS  IN SCHEMA ANALYTICS.STAGING TO ROLE DATA_GOVERNANCE_ADMIN;
+GRANT SELECT ON FUTURE TABLES IN SCHEMA ANALYTICS.STAGING TO ROLE DATA_GOVERNANCE_ADMIN;
+GRANT SELECT ON FUTURE VIEWS  IN SCHEMA ANALYTICS.STAGING TO ROLE DATA_GOVERNANCE_ADMIN;
+
+GRANT SELECT ON ALL TABLES IN SCHEMA ANALYTICS.MARTS TO ROLE DATA_GOVERNANCE_ADMIN;
+GRANT SELECT ON ALL VIEWS  IN SCHEMA ANALYTICS.MARTS TO ROLE DATA_GOVERNANCE_ADMIN;
+GRANT SELECT ON FUTURE TABLES IN SCHEMA ANALYTICS.MARTS TO ROLE DATA_GOVERNANCE_ADMIN;
+GRANT SELECT ON FUTURE VIEWS  IN SCHEMA ANALYTICS.MARTS TO ROLE DATA_GOVERNANCE_ADMIN;
+
+
+-- =====================================================================
+-- 11. OPTIONAL RAW MASKING-DEMO GRANTS
+-- =====================================================================
+-- DO NOT uncomment until RAW.BANKING.CUSTOMER exists.
+--
+-- Avidia requires tag-based masking to be proven on a RAW table and a MART
+-- for DATA_OWNER, DATA_STEWARD and DEPOSITS_ANALYST.
+--
+-- Keep RAW access selective instead of granting these roles every RAW table.
+--
+-- GRANT USAGE ON DATABASE RAW TO ROLE DATA_OWNER;
+-- GRANT USAGE ON DATABASE RAW TO ROLE DATA_STEWARD;
+-- GRANT USAGE ON DATABASE RAW TO ROLE DEPOSITS_ANALYST;
+--
+-- GRANT USAGE ON SCHEMA RAW.BANKING TO ROLE DATA_OWNER;
+-- GRANT USAGE ON SCHEMA RAW.BANKING TO ROLE DATA_STEWARD;
+-- GRANT USAGE ON SCHEMA RAW.BANKING TO ROLE DEPOSITS_ANALYST;
+--
+-- GRANT SELECT ON TABLE RAW.BANKING.CUSTOMER TO ROLE DATA_OWNER;
+-- GRANT SELECT ON TABLE RAW.BANKING.CUSTOMER TO ROLE DATA_STEWARD;
+-- GRANT SELECT ON TABLE RAW.BANKING.CUSTOMER TO ROLE DEPOSITS_ANALYST;
+
+
+-- =====================================================================
+-- 12. FEATURE-SPECIFIC PRIVILEGES - ADD LATER
+-- =====================================================================
+-- Intentionally NOT granted here.
+--
+-- Add these only in the relevant block-specific scripts after validating the
+-- exact privileges required by the Snowflake feature in your trial:
+--
+--   * classification profile / custom classifier
+--   * APPLY TAG
+--   * APPLY MASKING POLICY
+--   * APPLY ROW ACCESS POLICY
+--   * EXECUTE TASK
+--   * data metric functions / monitoring
+--   * Streamlit creation / execution
+--   * Cortex usage
+--   * external lineage
+--
+-- This preserves the least-privilege story and avoids unnecessary
+-- account-level privileges in the base setup.
+
+
+-- =====================================================================
+-- 13. VERIFICATION
+-- =====================================================================
+
+SHOW GRANTS TO ROLE DATA_OWNER;
+SHOW GRANTS TO ROLE DATA_STEWARD;
+SHOW GRANTS TO ROLE DEPOSITS_ANALYST;
+SHOW GRANTS TO ROLE BRANCH_HUDSON;
+
+SHOW GRANTS TO ROLE DATA_ENGINEER;
+SHOW GRANTS TO ROLE DATA_GOVERNANCE_ADMIN;
+SHOW GRANTS TO ROLE DATA_PLATFORM_ADMIN;
+SHOW GRANTS TO ROLE SVC_PIPELINE;
+
+
+-- =====================================================================
+-- End of setup/04_base_grants.sql
+-- =====================================================================

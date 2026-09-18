@@ -1,0 +1,11 @@
+branch_id,branch_code,branch_name,region,city,state,postal_code,branch_status
+BR001,BC001,Central Branch,NORTH,Bengaluru,Karnataka,560001,INACTIVE
+BR002,BC002,Metro Branch,SOUTH,New Delhi,Delhi,110001,ACTIVE
+BR003,BC003,City Branch,NORTH,Bengaluru,Karnataka,560001,INACTIVE
+BR004,BC004,Plaza Branch,NORTH,Mumbai,Maharashtra,400001,ACTIVE
+BR005,BC005,Square Branch,SOUTH,New Delhi,Delhi,110001,ACTIVE
+BR006,BC006,Heights Branch,SOUTH,Kochi,Kerala,682001,INACTIVE
+BR007,BC007,Park Branch,WEST,New Delhi,Delhi,110001,INACTIVE
+BR008,BC008,Lake Branch,SOUTH,Mumbai,Maharashtra,400001,INACTIVE
+BR009,BC009,Market Branch,EAST,Kolkata,West Bengal,700001,ACTIVE
+BR010,BC010,Station Branch,EAST,New Delhi,Delhi,110001,ACTIVE

@@ -1,0 +1,1278 @@
+{
+  "project": {
+    "name": "banking-data-governance",
+    "purpose": "Authoritative synthetic RAW banking data contract for the Snowflake governance take-home.",
+    "target_layer": "RAW",
+    "format": "CSV",
+    "encoding": "UTF-8"
+  },
+  "generation_config": {
+    "seed": 42,
+    "output_directory": "data/generated/raw",
+    "row_counts": {
+      "branch": 10,
+      "product": 15,
+      "officer": 100,
+      "customer": 5000,
+      "account": 8000,
+      "account_daily_balance": 240000,
+      "transaction": 150000,
+      "card": 5000,
+      "loan": 1500,
+      "loan_collateral": 1500,
+      "gl_control_total": 30
+    },
+    "balance_date_range": {
+      "start_date": "2026-08-01",
+      "end_date": "2026-08-30"
+    },
+    "csv": {
+      "include_header": true,
+      "encoding": "UTF-8",
+      "date_format": "YYYY-MM-DD",
+      "timestamp_format": "YYYY-MM-DD HH:MM:SS",
+      "null_representation": ""
+    }
+  },
+  "generation_rules": {
+    "customer_type_distribution": {
+      "PERSON": 0.85,
+      "BUSINESS": 0.15
+    },
+    "accounts": {
+      "each_customer_has_at_least_one_account": true,
+      "additional_accounts_randomly_assigned": true
+    },
+    "transactions": {
+      "one_row_represents_one_account_posting": true,
+      "internal_transfer_uses_two_postings": true,
+      "internal_transfer_postings_share_transaction_group_id": true,
+      "generate_for_active_accounts": true
+    },
+    "cards": {
+      "generate_for_a_subset_of_accounts": true,
+      "card_numbers_are_synthetic_only": true
+    },
+    "balances": {
+      "closing_balance": "opening_balance + credits - debits",
+      "next_day_opening_balance": "previous_day_closing_balance"
+    },
+    "gl_control_total": {
+      "type": "derived_synthetic_control",
+      "derived_from": "account_daily_balance",
+      "aggregation": "SUM(closing_balance)",
+      "group_by": [
+        "business_date",
+        "currency"
+      ],
+      "reconciliation_tolerance": 1.0,
+      "purpose": "Persisted synthetic GL control dataset used to demonstrate deposit-balance reconciliation."
+    }
+  },
+  "tables": {
+    "branch": {
+      "description": "Reference table for bank branches.",
+      "grain": "One row per branch.",
+      "primary_key": [
+        "branch_id"
+      ],
+      "business_key": [
+        "branch_code"
+      ],
+      "columns": {
+        "branch_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "id",
+          "sensitive": false
+        },
+        "branch_code": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "code",
+          "sensitive": false
+        },
+        "branch_name": {
+          "type": "VARCHAR(100)",
+          "nullable": false,
+          "generator": "branch_name",
+          "sensitive": false
+        },
+        "region": {
+          "type": "VARCHAR(50)",
+          "nullable": false,
+          "generator": "choice",
+          "allowed_values": [
+            "NORTH",
+            "SOUTH",
+            "EAST",
+            "WEST"
+          ],
+          "sensitive": false
+        },
+        "city": {
+          "type": "VARCHAR(100)",
+          "nullable": false,
+          "generator": "city",
+          "sensitive": false
+        },
+        "state": {
+          "type": "VARCHAR(100)",
+          "nullable": false,
+          "generator": "state",
+          "sensitive": false
+        },
+        "postal_code": {
+          "type": "VARCHAR(10)",
+          "nullable": false,
+          "generator": "postal_code",
+          "sensitive": false
+        },
+        "branch_status": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "choice",
+          "allowed_values": [
+            "ACTIVE",
+            "INACTIVE"
+          ],
+          "sensitive": false
+        }
+      }
+    },
+    "product": {
+      "description": "Reference table for banking deposit and loan products.",
+      "grain": "One row per product.",
+      "primary_key": [
+        "product_id"
+      ],
+      "business_key": [
+        "product_code"
+      ],
+      "columns": {
+        "product_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "id",
+          "sensitive": false
+        },
+        "product_code": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "product_code",
+          "sensitive": false
+        },
+        "product_name": {
+          "type": "VARCHAR(100)",
+          "nullable": false,
+          "generator": "product_name",
+          "sensitive": false
+        },
+        "product_type": {
+          "type": "VARCHAR(30)",
+          "nullable": false,
+          "generator": "choice",
+          "allowed_values": [
+            "SAVINGS",
+            "CURRENT",
+            "FIXED_DEPOSIT",
+            "PERSONAL_LOAN",
+            "HOME_LOAN"
+          ],
+          "sensitive": false
+        },
+        "currency": {
+          "type": "VARCHAR(3)",
+          "nullable": false,
+          "generator": "constant",
+          "value": "INR",
+          "sensitive": false
+        },
+        "interest_rate": {
+          "type": "NUMBER(7,4)",
+          "nullable": false,
+          "generator": "interest_rate",
+          "sensitive": false
+        },
+        "min_balance": {
+          "type": "NUMBER(18,2)",
+          "nullable": false,
+          "generator": "money",
+          "sensitive": false
+        },
+        "product_status": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "choice",
+          "allowed_values": [
+            "ACTIVE",
+            "INACTIVE"
+          ],
+          "sensitive": false
+        }
+      }
+    },
+    "officer": {
+      "description": "Bank officer reference linked to a branch.",
+      "grain": "One row per officer.",
+      "primary_key": [
+        "officer_id"
+      ],
+      "business_key": [
+        "officer_code"
+      ],
+      "columns": {
+        "officer_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "id",
+          "sensitive": false
+        },
+        "officer_code": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "code",
+          "sensitive": false
+        },
+        "officer_name": {
+          "type": "VARCHAR(150)",
+          "nullable": false,
+          "generator": "full_name",
+          "sensitive": false
+        },
+        "branch_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "foreign_key",
+          "references": "branch.branch_id",
+          "sensitive": false
+        },
+        "role": {
+          "type": "VARCHAR(50)",
+          "nullable": false,
+          "generator": "choice",
+          "allowed_values": [
+            "RELATIONSHIP_MANAGER",
+            "BRANCH_MANAGER",
+            "LOAN_OFFICER",
+            "OPERATIONS"
+          ],
+          "sensitive": false
+        },
+        "email": {
+          "type": "VARCHAR(255)",
+          "nullable": false,
+          "generator": "email",
+          "sensitive": false
+        },
+        "status": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "choice",
+          "allowed_values": [
+            "ACTIVE",
+            "INACTIVE"
+          ],
+          "sensitive": false
+        }
+      }
+    },
+    "customer": {
+      "description": "Bank customer master containing persons and businesses.",
+      "grain": "One row per customer.",
+      "primary_key": [
+        "customer_id"
+      ],
+      "business_key": [
+        "customer_id"
+      ],
+      "columns": {
+        "customer_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "id",
+          "sensitive": false
+        },
+        "customer_type": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "weighted_choice",
+          "weights": {
+            "PERSON": 0.85,
+            "BUSINESS": 0.15
+          },
+          "sensitive": false
+        },
+        "first_name": {
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "generator": "conditional",
+          "condition": "customer_type == PERSON",
+          "value_generator": "first_name",
+          "sensitive": false
+        },
+        "last_name": {
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "generator": "conditional",
+          "condition": "customer_type == PERSON",
+          "value_generator": "last_name",
+          "sensitive": false
+        },
+        "business_name": {
+          "type": "VARCHAR(200)",
+          "nullable": true,
+          "generator": "conditional",
+          "condition": "customer_type == BUSINESS",
+          "value_generator": "company",
+          "sensitive": false
+        },
+        "tax_id": {
+          "type": "VARCHAR(30)",
+          "nullable": false,
+          "generator": "synthetic_tax_id",
+          "sensitive": true
+        },
+        "date_of_birth": {
+          "type": "DATE",
+          "nullable": true,
+          "generator": "conditional",
+          "condition": "customer_type == PERSON",
+          "value_generator": "date_of_birth",
+          "sensitive": true
+        },
+        "email": {
+          "type": "VARCHAR(255)",
+          "nullable": false,
+          "generator": "email",
+          "sensitive": true
+        },
+        "phone": {
+          "type": "VARCHAR(30)",
+          "nullable": false,
+          "generator": "phone",
+          "sensitive": true
+        },
+        "address_line1": {
+          "type": "VARCHAR(255)",
+          "nullable": false,
+          "generator": "address_line",
+          "sensitive": false
+        },
+        "city": {
+          "type": "VARCHAR(100)",
+          "nullable": false,
+          "generator": "city",
+          "sensitive": false
+        },
+        "state": {
+          "type": "VARCHAR(100)",
+          "nullable": false,
+          "generator": "state",
+          "sensitive": false
+        },
+        "postal_code": {
+          "type": "VARCHAR(10)",
+          "nullable": false,
+          "generator": "postal_code",
+          "sensitive": false
+        },
+        "country": {
+          "type": "VARCHAR(50)",
+          "nullable": false,
+          "generator": "constant",
+          "value": "INDIA",
+          "sensitive": false
+        },
+        "branch_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "foreign_key",
+          "references": "branch.branch_id",
+          "sensitive": false
+        },
+        "officer_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "foreign_key",
+          "references": "officer.officer_id",
+          "relationship_rule": "prefer officer from same branch as customer",
+          "sensitive": false
+        },
+        "customer_status": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "choice",
+          "allowed_values": [
+            "ACTIVE",
+            "INACTIVE",
+            "SUSPENDED"
+          ],
+          "sensitive": false
+        },
+        "created_date": {
+          "type": "DATE",
+          "nullable": false,
+          "generator": "past_date",
+          "sensitive": false
+        },
+        "updated_timestamp": {
+          "type": "TIMESTAMP",
+          "nullable": false,
+          "generator": "timestamp",
+          "sensitive": false
+        },
+        "cust_ref": {
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "generator": "misleading_sensitive",
+          "actual_content": "tax_id",
+          "sensitive": true
+        },
+        "notes": {
+          "type": "VARCHAR(255)",
+          "nullable": true,
+          "generator": "misleading_sensitive",
+          "actual_content": "email",
+          "sensitive": true
+        }
+      }
+    },
+    "account": {
+      "description": "Deposit account master with one customer owner per account.",
+      "grain": "One row per deposit account.",
+      "primary_key": [
+        "account_id"
+      ],
+      "business_key": [
+        "account_number"
+      ],
+      "columns": {
+        "account_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "id",
+          "sensitive": false
+        },
+        "account_number": {
+          "type": "VARCHAR(30)",
+          "nullable": false,
+          "generator": "account_number",
+          "sensitive": true
+        },
+        "customer_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "foreign_key",
+          "references": "customer.customer_id",
+          "sensitive": false
+        },
+        "product_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "foreign_key",
+          "references": "product.product_id",
+          "reference_filter": "product_type in [SAVINGS, CURRENT, FIXED_DEPOSIT]",
+          "sensitive": false
+        },
+        "branch_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "foreign_key",
+          "references": "branch.branch_id",
+          "sensitive": false
+        },
+        "open_date": {
+          "type": "DATE",
+          "nullable": false,
+          "generator": "account_open_date",
+          "sensitive": false
+        },
+        "close_date": {
+          "type": "DATE",
+          "nullable": true,
+          "generator": "optional_close_date",
+          "sensitive": false
+        },
+        "account_status": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "choice",
+          "allowed_values": [
+            "ACTIVE",
+            "CLOSED",
+            "DORMANT"
+          ],
+          "sensitive": false
+        },
+        "currency": {
+          "type": "VARCHAR(3)",
+          "nullable": false,
+          "generator": "constant",
+          "value": "INR",
+          "sensitive": false
+        },
+        "current_balance": {
+          "type": "NUMBER(18,2)",
+          "nullable": false,
+          "generator": "derived_from_latest_balance",
+          "sensitive": false
+        },
+        "account_type": {
+          "type": "VARCHAR(30)",
+          "nullable": false,
+          "generator": "derived_from_product_type",
+          "sensitive": false
+        }
+      }
+    },
+    "account_daily_balance": {
+      "description": "Daily end-of-day balance for each deposit account.",
+      "grain": "One row per account per business date.",
+      "primary_key": [
+        "account_id",
+        "business_date"
+      ],
+      "business_key": [
+        "account_id",
+        "business_date"
+      ],
+      "generation_strategy": {
+        "type": "time_series",
+        "parent": "account.account_id",
+        "date_range": "generation_config.balance_date_range",
+        "formula": "previous_closing_balance + credits - debits"
+      },
+      "columns": {
+        "account_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "foreign_key",
+          "references": "account.account_id",
+          "sensitive": false
+        },
+        "business_date": {
+          "type": "DATE",
+          "nullable": false,
+          "generator": "business_date_series",
+          "sensitive": false
+        },
+        "opening_balance": {
+          "type": "NUMBER(18,2)",
+          "nullable": false,
+          "generator": "derived",
+          "sensitive": false
+        },
+        "closing_balance": {
+          "type": "NUMBER(18,2)",
+          "nullable": false,
+          "generator": "derived",
+          "sensitive": false
+        },
+        "available_balance": {
+          "type": "NUMBER(18,2)",
+          "nullable": false,
+          "generator": "derived",
+          "sensitive": false
+        },
+        "currency": {
+          "type": "VARCHAR(3)",
+          "nullable": false,
+          "generator": "constant",
+          "value": "INR",
+          "sensitive": false
+        },
+        "source_system": {
+          "type": "VARCHAR(50)",
+          "nullable": false,
+          "generator": "constant",
+          "value": "CORE_BANKING",
+          "sensitive": false
+        },
+        "load_timestamp": {
+          "type": "TIMESTAMP",
+          "nullable": false,
+          "generator": "timestamp",
+          "sensitive": false
+        }
+      }
+    },
+    "transaction": {
+      "description": "Account transaction postings. One row represents one posting affecting one account.",
+      "grain": "One row per account transaction posting.",
+      "primary_key": [
+        "transaction_id"
+      ],
+      "business_key": [
+        "transaction_id"
+      ],
+      "columns": {
+        "transaction_id": {
+          "type": "VARCHAR(30)",
+          "nullable": false,
+          "generator": "id",
+          "sensitive": false
+        },
+        "account_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "foreign_key",
+          "references": "account.account_id",
+          "sensitive": false
+        },
+        "customer_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "derived_from_account",
+          "references": "customer.customer_id",
+          "sensitive": false
+        },
+        "transaction_date": {
+          "type": "DATE",
+          "nullable": false,
+          "generator": "transaction_date",
+          "sensitive": false
+        },
+        "posting_date": {
+          "type": "DATE",
+          "nullable": false,
+          "generator": "posting_date",
+          "sensitive": false
+        },
+        "transaction_type": {
+          "type": "VARCHAR(30)",
+          "nullable": false,
+          "generator": "choice",
+          "allowed_values": [
+            "CASH_DEPOSIT",
+            "CASH_WITHDRAWAL",
+            "TRANSFER",
+            "CARD_PAYMENT",
+            "ATM_WITHDRAWAL",
+            "INTEREST_CREDIT",
+            "FEE"
+          ],
+          "sensitive": false
+        },
+        "transaction_code": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "transaction_code",
+          "sensitive": false
+        },
+        "amount": {
+          "type": "NUMBER(18,2)",
+          "nullable": false,
+          "generator": "money_positive",
+          "sensitive": false
+        },
+        "currency": {
+          "type": "VARCHAR(3)",
+          "nullable": false,
+          "generator": "constant",
+          "value": "INR",
+          "sensitive": false
+        },
+        "debit_credit": {
+          "type": "VARCHAR(1)",
+          "nullable": false,
+          "generator": "choice",
+          "allowed_values": [
+            "D",
+            "C"
+          ],
+          "sensitive": false
+        },
+        "channel": {
+          "type": "VARCHAR(30)",
+          "nullable": false,
+          "generator": "choice",
+          "allowed_values": [
+            "BRANCH",
+            "ATM",
+            "MOBILE",
+            "INTERNET",
+            "CARD",
+            "UPI"
+          ],
+          "sensitive": false
+        },
+        "merchant_name": {
+          "type": "VARCHAR(150)",
+          "nullable": true,
+          "generator": "merchant_name",
+          "sensitive": false
+        },
+        "status": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "choice",
+          "allowed_values": [
+            "POSTED",
+            "REVERSED",
+            "PENDING"
+          ],
+          "sensitive": false
+        },
+        "reference": {
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "generator": "misleading_sensitive_subset",
+          "actual_content": "card_number",
+          "sensitive": true
+        },
+        "memo": {
+          "type": "VARCHAR(255)",
+          "nullable": true,
+          "generator": "misleading_sensitive_subset",
+          "actual_content": "phone_number",
+          "sensitive": true
+        },
+        "balance_after_transaction": {
+          "type": "NUMBER(18,2)",
+          "nullable": false,
+          "generator": "derived",
+          "sensitive": false
+        },
+        "load_timestamp": {
+          "type": "TIMESTAMP",
+          "nullable": false,
+          "generator": "timestamp",
+          "sensitive": false
+        },
+        "transaction_group_id": {
+          "type": "VARCHAR(30)",
+          "nullable": false,
+          "generator": "transaction_group_id",
+          "description": "Groups postings belonging to the same business transaction, especially internal transfers.",
+          "sensitive": false
+        }
+      },
+      "transaction_rules": {
+        "standard_posting": "One row represents one posting affecting one customer account.",
+        "internal_transfer": "Generate two postings with the same transaction_group_id: one debit and one credit, for the same amount.",
+        "external_or_cash_activity": "One customer-account posting is sufficient for this simplified model because the counterparty is outside the modeled customer-account scope."
+      }
+    },
+    "card": {
+      "description": "Synthetic cards linked to deposit accounts.",
+      "grain": "One row per card.",
+      "primary_key": [
+        "card_id"
+      ],
+      "business_key": [
+        "card_number"
+      ],
+      "columns": {
+        "card_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "id",
+          "sensitive": false
+        },
+        "account_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "foreign_key",
+          "references": "account.account_id",
+          "sensitive": false
+        },
+        "customer_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "derived_from_account",
+          "references": "customer.customer_id",
+          "sensitive": false
+        },
+        "card_number": {
+          "type": "VARCHAR(19)",
+          "nullable": false,
+          "generator": "synthetic_card_pan_like",
+          "sensitive": true
+        },
+        "card_type": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "choice",
+          "allowed_values": [
+            "DEBIT",
+            "CREDIT"
+          ],
+          "sensitive": false
+        },
+        "issue_date": {
+          "type": "DATE",
+          "nullable": false,
+          "generator": "past_date",
+          "sensitive": false
+        },
+        "expiry_date": {
+          "type": "DATE",
+          "nullable": false,
+          "generator": "future_date",
+          "sensitive": false
+        },
+        "card_status": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "choice",
+          "allowed_values": [
+            "ACTIVE",
+            "BLOCKED",
+            "EXPIRED"
+          ],
+          "sensitive": false
+        }
+      }
+    },
+    "loan": {
+      "description": "Loan master with credit grade and current exposure.",
+      "grain": "One row per loan.",
+      "primary_key": [
+        "loan_id"
+      ],
+      "business_key": [
+        "loan_number"
+      ],
+      "columns": {
+        "loan_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "id",
+          "sensitive": false
+        },
+        "loan_number": {
+          "type": "VARCHAR(30)",
+          "nullable": false,
+          "generator": "loan_number",
+          "sensitive": false
+        },
+        "customer_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "foreign_key",
+          "references": "customer.customer_id",
+          "sensitive": false
+        },
+        "product_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "foreign_key",
+          "references": "product.product_id",
+          "reference_filter": "product_type in [PERSONAL_LOAN, HOME_LOAN]",
+          "sensitive": false
+        },
+        "branch_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "foreign_key",
+          "references": "branch.branch_id",
+          "sensitive": false
+        },
+        "officer_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "foreign_key",
+          "references": "officer.officer_id",
+          "relationship_rule": "prefer officer from same branch as loan",
+          "sensitive": false
+        },
+        "loan_type": {
+          "type": "VARCHAR(30)",
+          "nullable": false,
+          "generator": "derived_from_product_type",
+          "sensitive": false
+        },
+        "loan_amount": {
+          "type": "NUMBER(18,2)",
+          "nullable": false,
+          "generator": "money_positive",
+          "sensitive": false
+        },
+        "outstanding_amount": {
+          "type": "NUMBER(18,2)",
+          "nullable": false,
+          "generator": "bounded_by_loan_amount",
+          "sensitive": false
+        },
+        "interest_rate": {
+          "type": "NUMBER(7,4)",
+          "nullable": false,
+          "generator": "loan_interest_rate",
+          "sensitive": false
+        },
+        "tenure_months": {
+          "type": "NUMBER(6,0)",
+          "nullable": false,
+          "generator": "choice",
+          "allowed_values": [
+            12,
+            24,
+            36,
+            60,
+            120,
+            180,
+            240
+          ],
+          "sensitive": false
+        },
+        "start_date": {
+          "type": "DATE",
+          "nullable": false,
+          "generator": "past_date",
+          "sensitive": false
+        },
+        "maturity_date": {
+          "type": "DATE",
+          "nullable": false,
+          "generator": "derived_from_start_and_tenure",
+          "sensitive": false
+        },
+        "credit_grade": {
+          "type": "VARCHAR(5)",
+          "nullable": false,
+          "generator": "weighted_choice",
+          "weights": {
+            "A": 0.25,
+            "B": 0.45,
+            "C": 0.25,
+            "D": 0.05
+          },
+          "sensitive": false
+        },
+        "loan_status": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "choice",
+          "allowed_values": [
+            "ACTIVE",
+            "CLOSED",
+            "DEFAULTED"
+          ],
+          "sensitive": false
+        }
+      }
+    },
+    "loan_collateral": {
+      "description": "Collateral associated with loans.",
+      "grain": "One row per collateral item.",
+      "primary_key": [
+        "collateral_id"
+      ],
+      "business_key": [
+        "collateral_id"
+      ],
+      "columns": {
+        "collateral_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "id",
+          "sensitive": false
+        },
+        "loan_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "foreign_key",
+          "references": "loan.loan_id",
+          "sensitive": false
+        },
+        "collateral_type": {
+          "type": "VARCHAR(30)",
+          "nullable": false,
+          "generator": "choice",
+          "allowed_values": [
+            "PROPERTY",
+            "VEHICLE",
+            "DEPOSIT",
+            "SECURITIES"
+          ],
+          "sensitive": false
+        },
+        "description": {
+          "type": "VARCHAR(255)",
+          "nullable": false,
+          "generator": "collateral_description",
+          "sensitive": false
+        },
+        "valuation_amount": {
+          "type": "NUMBER(18,2)",
+          "nullable": false,
+          "generator": "money_positive",
+          "sensitive": false
+        },
+        "valuation_date": {
+          "type": "DATE",
+          "nullable": false,
+          "generator": "past_date",
+          "sensitive": false
+        },
+        "owner_name": {
+          "type": "VARCHAR(150)",
+          "nullable": false,
+          "generator": "full_name",
+          "sensitive": false
+        },
+        "collateral_status": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "choice",
+          "allowed_values": [
+            "ACTIVE",
+            "RELEASED"
+          ],
+          "sensitive": false
+        }
+      }
+    },
+    "gl_control_total": {
+      "description": "General ledger control totals used to reconcile daily deposit balances.",
+      "grain": "One row per business date and currency.",
+      "primary_key": [
+        "gl_control_id"
+      ],
+      "business_key": [
+        "business_date",
+        "currency"
+      ],
+      "generation_strategy": {
+        "type": "derived",
+        "source": "account_daily_balance",
+        "aggregation": "SUM(closing_balance)",
+        "group_by": [
+          "business_date",
+          "currency"
+        ],
+        "reconciliation_tolerance": 1.0
+      },
+      "columns": {
+        "gl_control_id": {
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "generator": "id",
+          "sensitive": false
+        },
+        "business_date": {
+          "type": "DATE",
+          "nullable": false,
+          "generator": "business_date_series",
+          "sensitive": false
+        },
+        "gl_account_code": {
+          "type": "VARCHAR(30)",
+          "nullable": false,
+          "generator": "constant",
+          "value": "DEP-100",
+          "sensitive": false
+        },
+        "product_type": {
+          "type": "VARCHAR(30)",
+          "nullable": false,
+          "generator": "constant",
+          "value": "DEPOSIT",
+          "sensitive": false
+        },
+        "currency": {
+          "type": "VARCHAR(3)",
+          "nullable": false,
+          "generator": "constant",
+          "value": "INR",
+          "sensitive": false
+        },
+        "control_total": {
+          "type": "NUMBER(18,2)",
+          "nullable": false,
+          "generator": "derived_from_account_daily_balance",
+          "sensitive": false
+        },
+        "transaction_count": {
+          "type": "NUMBER(18,0)",
+          "nullable": false,
+          "generator": "derived_from_transaction",
+          "sensitive": false
+        },
+        "source_system": {
+          "type": "VARCHAR(50)",
+          "nullable": false,
+          "generator": "constant",
+          "value": "GENERAL_LEDGER",
+          "sensitive": false
+        },
+        "load_timestamp": {
+          "type": "TIMESTAMP",
+          "nullable": false,
+          "generator": "timestamp",
+          "sensitive": false
+        }
+      }
+    }
+  },
+  "relationships": [
+    {
+      "parent": "branch.branch_id",
+      "child": "officer.branch_id",
+      "cardinality": "1:N",
+      "required": true
+    },
+    {
+      "parent": "branch.branch_id",
+      "child": "customer.branch_id",
+      "cardinality": "1:N",
+      "required": true
+    },
+    {
+      "parent": "branch.branch_id",
+      "child": "account.branch_id",
+      "cardinality": "1:N",
+      "required": true
+    },
+    {
+      "parent": "branch.branch_id",
+      "child": "loan.branch_id",
+      "cardinality": "1:N",
+      "required": true
+    },
+    {
+      "parent": "officer.officer_id",
+      "child": "customer.officer_id",
+      "cardinality": "1:N",
+      "required": true
+    },
+    {
+      "parent": "officer.officer_id",
+      "child": "loan.officer_id",
+      "cardinality": "1:N",
+      "required": true
+    },
+    {
+      "parent": "customer.customer_id",
+      "child": "account.customer_id",
+      "cardinality": "1:N",
+      "required": true
+    },
+    {
+      "parent": "product.product_id",
+      "child": "account.product_id",
+      "cardinality": "1:N",
+      "required": true
+    },
+    {
+      "parent": "account.account_id",
+      "child": "account_daily_balance.account_id",
+      "cardinality": "1:N",
+      "required": true
+    },
+    {
+      "parent": "account.account_id",
+      "child": "transaction.account_id",
+      "cardinality": "1:N",
+      "required": true
+    },
+    {
+      "parent": "customer.customer_id",
+      "child": "transaction.customer_id",
+      "cardinality": "1:N",
+      "required": true
+    },
+    {
+      "parent": "account.account_id",
+      "child": "card.account_id",
+      "cardinality": "1:N",
+      "required": true
+    },
+    {
+      "parent": "customer.customer_id",
+      "child": "card.customer_id",
+      "cardinality": "1:N",
+      "required": true
+    },
+    {
+      "parent": "customer.customer_id",
+      "child": "loan.customer_id",
+      "cardinality": "1:N",
+      "required": true
+    },
+    {
+      "parent": "product.product_id",
+      "child": "loan.product_id",
+      "cardinality": "1:N",
+      "required": true
+    },
+    {
+      "parent": "loan.loan_id",
+      "child": "loan_collateral.loan_id",
+      "cardinality": "1:N",
+      "required": true
+    }
+  ],
+  "generation_order": [
+    "branch",
+    "product",
+    "officer",
+    "customer",
+    "account",
+    "transaction",
+    "account_daily_balance",
+    "card",
+    "loan",
+    "loan_collateral",
+    "gl_control_total"
+  ],
+  "sensitive_data_rules": {
+    "required_sensitive_columns": [
+      "customer.tax_id",
+      "customer.date_of_birth",
+      "customer.email",
+      "customer.phone",
+      "customer.cust_ref",
+      "customer.notes",
+      "account.account_number",
+      "transaction.reference",
+      "transaction.memo",
+      "card.card_number"
+    ],
+    "deliberately_mislabeled_columns": [
+      {
+        "table": "customer",
+        "column": "cust_ref",
+        "actual_sensitive_content": "tax_id"
+      },
+      {
+        "table": "customer",
+        "column": "notes",
+        "actual_sensitive_content": "email"
+      },
+      {
+        "table": "transaction",
+        "column": "memo",
+        "actual_sensitive_content": "phone_number"
+      },
+      {
+        "table": "transaction",
+        "column": "reference",
+        "actual_sensitive_content": "card_number"
+      }
+    ],
+    "purpose": "Defines which synthetic fields intentionally represent sensitive information, including misleading column names, so Snowflake classification can be evaluated independently."
+  },
+  "validation_rules": {
+    "required_before_csv_write": [
+      "Primary keys are unique.",
+      "Foreign keys resolve to parent records.",
+      "Every customer has at least one account.",
+      "Customer officer belongs to the same branch as the customer.",
+      "Loan officer belongs to the same branch as the loan.",
+      "Loan product is a loan product.",
+      "Account product is a deposit product.",
+      "Daily balance has exactly one row per account per business date.",
+      "Closing balance follows the configured balance formula.",
+      "GL control total equals aggregated daily deposit balances.",
+      "Required fields are populated unless explicitly nullable.",
+      "Allowed-value columns contain only configured values."
+    ],
+    "outputs": [
+      "CSV files",
+      "manifest.json",
+      "validation_report.json"
+    ]
+  }
+}
