@@ -3,7 +3,7 @@
 -- Database and Schema Foundation
 -- ============================================================
 
-USE ROLE DATA_PLATFORM_ADMIN;
+USE ROLE ACCOUNTADMIN;
 USE WAREHOUSE WH_GOVERNANCE_XS;
 
 

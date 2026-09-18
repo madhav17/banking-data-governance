@@ -153,7 +153,38 @@ TO ROLE DATA_ENGINEER;
 
 
 -- =====================================================================
--- 6. DATA_GOVERNANCE_ADMIN CREATE PRIVILEGES
+-- 6. DATA_ENGINEER TABLE DML PRIVILEGES
+-- =====================================================================
+-- DML privileges are granted on tables. Future grants make these privileges
+-- apply to tables later created in the engineering schemas.
+
+GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE
+ON ALL TABLES IN SCHEMA RAW.BANKING
+TO ROLE DATA_ENGINEER;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE
+ON FUTURE TABLES IN SCHEMA RAW.BANKING
+TO ROLE DATA_ENGINEER;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE
+ON ALL TABLES IN SCHEMA ANALYTICS.STAGING
+TO ROLE DATA_ENGINEER;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE
+ON FUTURE TABLES IN SCHEMA ANALYTICS.STAGING
+TO ROLE DATA_ENGINEER;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE
+ON ALL TABLES IN SCHEMA ANALYTICS.MARTS
+TO ROLE DATA_ENGINEER;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE
+ON FUTURE TABLES IN SCHEMA ANALYTICS.MARTS
+TO ROLE DATA_ENGINEER;
+
+
+-- =====================================================================
+-- 7. DATA_GOVERNANCE_ADMIN CREATE PRIVILEGES
 -- =====================================================================
 
 GRANT CREATE TABLE,
@@ -189,7 +220,7 @@ TO ROLE DATA_GOVERNANCE_ADMIN;
 
 
 -- =====================================================================
--- 7. SVC_PIPELINE BASE DEPLOYMENT PRIVILEGES
+-- 8. SVC_PIPELINE BASE DEPLOYMENT PRIVILEGES
 -- =====================================================================
 -- Keep this role narrower than an administrator.
 -- It can create/deploy data objects used by the automated pipeline.
@@ -217,7 +248,7 @@ TO ROLE SVC_PIPELINE;
 
 
 -- =====================================================================
--- 8. MART READ ACCESS FOR BUSINESS / CONSUMER ROLES
+-- 9. MART READ ACCESS FOR BUSINESS / CONSUMER ROLES
 -- =====================================================================
 -- Grant both existing and future objects so the script remains useful
 -- when re-run after dbt models have been created.
@@ -244,7 +275,7 @@ GRANT SELECT ON FUTURE VIEWS  IN SCHEMA ANALYTICS.MARTS TO ROLE BRANCH_HUDSON;
 
 
 -- =====================================================================
--- 9. STAGING READ ACCESS FOR DATA_STEWARD
+-- 10. STAGING READ ACCESS FOR DATA_STEWARD
 -- =====================================================================
 -- Supports classification and business-definition review.
 
@@ -255,7 +286,7 @@ GRANT SELECT ON FUTURE VIEWS  IN SCHEMA ANALYTICS.STAGING TO ROLE DATA_STEWARD;
 
 
 -- =====================================================================
--- 10. GOVERNANCE ADMIN READ ACCESS TO DATA LAYERS
+-- 11. GOVERNANCE ADMIN READ ACCESS TO DATA LAYERS
 -- =====================================================================
 -- Useful for governance validation, policy-gap checks, metadata verification
 -- and controlled classification/protection testing.
@@ -277,7 +308,7 @@ GRANT SELECT ON FUTURE VIEWS  IN SCHEMA ANALYTICS.MARTS TO ROLE DATA_GOVERNANCE_
 
 
 -- =====================================================================
--- 11. OPTIONAL RAW MASKING-DEMO GRANTS
+-- 12. OPTIONAL RAW MASKING-DEMO GRANTS
 -- =====================================================================
 -- DO NOT uncomment until RAW.BANKING.CUSTOMER exists.
 --
@@ -300,7 +331,7 @@ GRANT SELECT ON FUTURE VIEWS  IN SCHEMA ANALYTICS.MARTS TO ROLE DATA_GOVERNANCE_
 
 
 -- =====================================================================
--- 12. FEATURE-SPECIFIC PRIVILEGES - ADD LATER
+-- 13. FEATURE-SPECIFIC PRIVILEGES - ADD LATER
 -- =====================================================================
 -- Intentionally NOT granted here.
 --
@@ -322,7 +353,7 @@ GRANT SELECT ON FUTURE VIEWS  IN SCHEMA ANALYTICS.MARTS TO ROLE DATA_GOVERNANCE_
 
 
 -- =====================================================================
--- 13. VERIFICATION
+-- 14. VERIFICATION
 -- =====================================================================
 
 SHOW GRANTS TO ROLE DATA_OWNER;
