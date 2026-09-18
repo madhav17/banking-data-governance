@@ -1,0 +1,88 @@
+-- ============================================================
+-- Avidia Bank
+-- Prepare RAW for Full Reload
+-- ============================================================
+
+USE ROLE DATA_ENGINEER;
+USE WAREHOUSE WH_GOVERNANCE_XS;
+
+
+-- ============================================================
+-- 1. REMOVE PREVIOUSLY STAGED FILES
+-- ============================================================
+-- This avoids accidentally keeping an older version of a CSV
+-- under the same filename.
+
+REMOVE @RAW.BANKING.STG_BANKING_CSV;
+
+
+-- ============================================================
+-- 2. TRUNCATE EXISTING RAW DATA
+-- ============================================================
+-- Every CLI reload starts from an empty RAW layer.
+-- ============================================================
+
+TRUNCATE TABLE RAW.BANKING.ACCOUNT_DAILY_BALANCE;
+TRUNCATE TABLE RAW.BANKING.CARD;
+TRUNCATE TABLE RAW.BANKING.TRANSACTIONS;
+TRUNCATE TABLE RAW.BANKING.LOAN_COLLATERAL;
+
+TRUNCATE TABLE RAW.BANKING.ACCOUNT;
+TRUNCATE TABLE RAW.BANKING.LOAN;
+TRUNCATE TABLE RAW.BANKING.CUSTOMER;
+
+TRUNCATE TABLE RAW.BANKING.OFFICER;
+TRUNCATE TABLE RAW.BANKING.PRODUCT;
+TRUNCATE TABLE RAW.BANKING.BRANCH;
+
+TRUNCATE TABLE RAW.BANKING.GL_CONTROL_TOTAL;
+
+
+-- ============================================================
+-- 3. VERIFY TABLES ARE EMPTY
+-- ============================================================
+
+SELECT 'ACCOUNT' AS TABLE_NAME, COUNT(*) AS ROW_COUNT
+FROM RAW.BANKING.ACCOUNT
+
+UNION ALL
+SELECT 'ACCOUNT_DAILY_BALANCE', COUNT(*)
+FROM RAW.BANKING.ACCOUNT_DAILY_BALANCE
+
+UNION ALL
+SELECT 'BRANCH', COUNT(*)
+FROM RAW.BANKING.BRANCH
+
+UNION ALL
+SELECT 'CARD', COUNT(*)
+FROM RAW.BANKING.CARD
+
+UNION ALL
+SELECT 'CUSTOMER', COUNT(*)
+FROM RAW.BANKING.CUSTOMER
+
+UNION ALL
+SELECT 'GL_CONTROL_TOTAL', COUNT(*)
+FROM RAW.BANKING.GL_CONTROL_TOTAL
+
+UNION ALL
+SELECT 'LOAN', COUNT(*)
+FROM RAW.BANKING.LOAN
+
+UNION ALL
+SELECT 'LOAN_COLLATERAL', COUNT(*)
+FROM RAW.BANKING.LOAN_COLLATERAL
+
+UNION ALL
+SELECT 'OFFICER', COUNT(*)
+FROM RAW.BANKING.OFFICER
+
+UNION ALL
+SELECT 'PRODUCT', COUNT(*)
+FROM RAW.BANKING.PRODUCT
+
+UNION ALL
+SELECT 'TRANSACTIONS', COUNT(*)
+FROM RAW.BANKING.TRANSACTIONS
+
+ORDER BY TABLE_NAME;

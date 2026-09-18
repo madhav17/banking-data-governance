@@ -1226,8 +1226,8 @@
       "customer.cust_ref",
       "customer.notes",
       "account.account_number",
-      "transaction.reference",
-      "transaction.memo",
+      "transactions.reference",
+      "transactions.memo",
       "card.card_number"
     ],
     "deliberately_mislabeled_columns": [
@@ -1242,12 +1242,12 @@
         "actual_sensitive_content": "email"
       },
       {
-        "table": "transaction",
+        "table": "transactions",
         "column": "memo",
         "actual_sensitive_content": "phone_number"
       },
       {
-        "table": "transaction",
+        "table": "transactions",
         "column": "reference",
         "actual_sensitive_content": "card_number"
       }

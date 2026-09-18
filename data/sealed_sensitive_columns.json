@@ -1,0 +1,109 @@
+{
+  "version": "1.0",
+  "source_spec": "raw_data_spec_final.json",
+  "purpose": "Defines the sealed ground truth for synthetic sensitive fields so Snowflake classification can be evaluated independently. Commit this file before running classification and do not modify it to match classification results.",
+  "sensitive_columns": [
+    {
+      "table": "customer",
+      "column": "tax_id",
+      "fully_qualified_name": "customer.tax_id",
+      "expected_sensitive": true,
+      "expected_sensitive_content": "tax_id",
+      "deliberately_mislabeled": false
+    },
+    {
+      "table": "customer",
+      "column": "date_of_birth",
+      "fully_qualified_name": "customer.date_of_birth",
+      "expected_sensitive": true,
+      "expected_sensitive_content": "date_of_birth",
+      "deliberately_mislabeled": false
+    },
+    {
+      "table": "customer",
+      "column": "email",
+      "fully_qualified_name": "customer.email",
+      "expected_sensitive": true,
+      "expected_sensitive_content": "email",
+      "deliberately_mislabeled": false
+    },
+    {
+      "table": "customer",
+      "column": "phone",
+      "fully_qualified_name": "customer.phone",
+      "expected_sensitive": true,
+      "expected_sensitive_content": "phone_number",
+      "deliberately_mislabeled": false
+    },
+    {
+      "table": "customer",
+      "column": "cust_ref",
+      "fully_qualified_name": "customer.cust_ref",
+      "expected_sensitive": true,
+      "expected_sensitive_content": "tax_id",
+      "deliberately_mislabeled": true
+    },
+    {
+      "table": "customer",
+      "column": "notes",
+      "fully_qualified_name": "customer.notes",
+      "expected_sensitive": true,
+      "expected_sensitive_content": "email",
+      "deliberately_mislabeled": true
+    },
+    {
+      "table": "account",
+      "column": "account_number",
+      "fully_qualified_name": "account.account_number",
+      "expected_sensitive": true,
+      "expected_sensitive_content": "account_number",
+      "deliberately_mislabeled": false
+    },
+    {
+      "table": "transactions",
+      "column": "reference",
+      "fully_qualified_name": "transactions.reference",
+      "expected_sensitive": true,
+      "expected_sensitive_content": "card_number",
+      "deliberately_mislabeled": true
+    },
+    {
+      "table": "transactions",
+      "column": "memo",
+      "fully_qualified_name": "transactions.memo",
+      "expected_sensitive": true,
+      "expected_sensitive_content": "phone_number",
+      "deliberately_mislabeled": true
+    },
+    {
+      "table": "card",
+      "column": "card_number",
+      "fully_qualified_name": "card.card_number",
+      "expected_sensitive": true,
+      "expected_sensitive_content": "card_number",
+      "deliberately_mislabeled": false
+    }
+  ],
+  "deliberately_mislabeled_columns": [
+    {
+      "table": "customer",
+      "column": "cust_ref",
+      "actual_sensitive_content": "tax_id"
+    },
+    {
+      "table": "customer",
+      "column": "notes",
+      "actual_sensitive_content": "email"
+    },
+    {
+      "table": "transactions",
+      "column": "memo",
+      "actual_sensitive_content": "phone_number"
+    },
+    {
+      "table": "transactions",
+      "column": "reference",
+      "actual_sensitive_content": "card_number"
+    }
+  ]
+}
