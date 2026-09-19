@@ -41,11 +41,19 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: dbt/requirements-ci.txt
 
       - name: Install dbt, SQLFluff and Snowflake CLI
         run: |
           python -m pip install --upgrade pip
-          pip install dbt-snowflake sqlfluff sqlfluff-templater-dbt snowflake-cli
+          pip install -r dbt/requirements-ci.txt
+          python -m pip install pipx
+          python -m pipx install snowflake-cli==3.27.0
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+          dbt --version
+          sqlfluff --version
+          "${HOME}/.local/bin/snow" --version
 
       - name: Write Snowflake private key
         env:
@@ -83,6 +91,41 @@ jobs:
             echo "SNOWFLAKE_DATABASE=${CI_DATABASE}"
             echo "DBT_CI_SCHEMA=${CI_SCHEMA}"
           } >> "${GITHUB_ENV}"
+
+      - name: Print CI configuration
+        run: |
+          echo "GitHub ref: ${GITHUB_REF}"
+          echo "GitHub branch/ref name: ${GITHUB_REF_NAME}"
+          echo "GitHub run id: ${GITHUB_RUN_ID}"
+          echo "dbt project dir: ${DBT_PROJECT_DIR}"
+          echo "dbt profiles dir: ${DBT_PROFILES_DIR}"
+          echo "dbt target: ${DBT_TARGET}"
+          echo "Snowflake account: ${SNOWFLAKE_ACCOUNT}"
+          echo "Snowflake role: ${SNOWFLAKE_ROLE}"
+          echo "Snowflake warehouse: ${SNOWFLAKE_WAREHOUSE}"
+          echo "Snowflake authenticator: ${SNOWFLAKE_AUTHENTICATOR}"
+          echo "Snowflake base database: ${BASE_DATABASE}"
+          echo "Snowflake CI database: ${CI_DATABASE}"
+          echo "dbt CI schema: ${DBT_CI_SCHEMA}"
+          echo "dbt threads: ${DBT_THREADS}"
+
+          if [ -n "${SNOWFLAKE_USER:-}" ]; then
+            echo "Snowflake user secret configured: yes"
+          else
+            echo "Snowflake user secret configured: no"
+          fi
+
+          if [ -f "${DBT_SNOWFLAKE_PRIVATE_KEY_PATH:-}" ]; then
+            echo "Snowflake private key file configured: yes"
+          else
+            echo "Snowflake private key file configured: no"
+          fi
+
+          if [ -n "${DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE:-}" ]; then
+            echo "Snowflake private key passphrase configured: yes"
+          else
+            echo "Snowflake private key passphrase configured: no"
+          fi
 
       - name: SQLFluff lint
         working-directory: dbt
