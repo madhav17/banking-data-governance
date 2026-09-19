@@ -6,9 +6,7 @@ avidia_banking_governance:
       account: "{{ env_var('DBT_SNOWFLAKE_ACCOUNT') }}"
       user: "{{ env_var('DBT_SNOWFLAKE_USER') }}"
       private_key_path: "{{ env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PATH') }}"
-{% if env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE', '') %}
       private_key_passphrase: "{{ env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE', '') }}"
-{% endif %}
       role: "{{ env_var('DBT_SNOWFLAKE_ROLE') }}"
       warehouse: "{{ env_var('DBT_SNOWFLAKE_WAREHOUSE') }}"
       database: "{{ env_var('DBT_SNOWFLAKE_DATABASE') }}"
@@ -21,9 +19,7 @@ avidia_banking_governance:
       account: "{{ env_var('DBT_SNOWFLAKE_ACCOUNT') }}"
       user: "{{ env_var('DBT_SNOWFLAKE_USER') }}"
       private_key_path: "{{ env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PATH') }}"
-{% if env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE', '') %}
       private_key_passphrase: "{{ env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE', '') }}"
-{% endif %}
       role: "{{ env_var('DBT_SNOWFLAKE_ROLE') }}"
       warehouse: "{{ env_var('DBT_SNOWFLAKE_WAREHOUSE') }}"
       database: "{{ env_var('DBT_SNOWFLAKE_DATABASE') }}"
@@ -36,9 +32,7 @@ avidia_banking_governance:
       account: "{{ env_var('DBT_SNOWFLAKE_ACCOUNT') }}"
       user: "{{ env_var('DBT_SNOWFLAKE_USER') }}"
       private_key_path: "{{ env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PATH') }}"
-{% if env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE', '') %}
       private_key_passphrase: "{{ env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE', '') }}"
-{% endif %}
       role: "{{ env_var('DBT_SNOWFLAKE_ROLE') }}"
       warehouse: "{{ env_var('DBT_SNOWFLAKE_WAREHOUSE') }}"
       database: "{{ env_var('DBT_SNOWFLAKE_DATABASE') }}"
