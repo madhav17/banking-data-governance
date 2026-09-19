@@ -1,0 +1,19 @@
+definition_version: 2
+
+entities:
+  avida_data_catalog:
+    type: streamlit
+    identifier:
+      name: AVIDIA_DATA_CATALOG
+      database: GOVERNANCE
+      schema: CATALOG
+    title: Avidia Data Catalog
+    comment: Mock Streamlit data catalog framework for the Avidia Bank take-home project.
+    stage: AVIDIA_DATA_CATALOG_STAGE
+    query_warehouse: WH_GOVERNANCE_XS
+    main_file: streamlit_app.py
+    artifacts:
+      - streamlit_app.py
+      - environment.yml
+      - components/
+      - services/

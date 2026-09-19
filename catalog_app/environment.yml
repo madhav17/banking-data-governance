@@ -1,0 +1,6 @@
+name: avidia-data-catalog
+channels:
+  - snowflake
+dependencies:
+  - python=3.11
+  - streamlit
