@@ -294,3 +294,94 @@ VALUES
 
     TRUE
 );
+
+
+-- ============================================================================
+-- RAW TABLE SOURCE SYSTEM ASSIGNMENTS
+-- ============================================================================
+
+MERGE INTO GOVERNANCE.CATALOG.TAG_ASSIGNMENT T
+
+USING
+(
+    SELECT
+        COLUMN1::VARCHAR AS DATABASE_NAME,
+        COLUMN2::VARCHAR AS SCHEMA_NAME,
+        COLUMN3::VARCHAR AS OBJECT_NAME,
+        COLUMN4::VARCHAR AS TAG_VALUE
+
+    FROM VALUES
+
+        ('RAW', 'BANKING', 'BRANCH',                'CORE_BANKING'),
+        ('RAW', 'BANKING', 'PRODUCT',               'CORE_BANKING'),
+        ('RAW', 'BANKING', 'OFFICER',               'CRM'),
+        ('RAW', 'BANKING', 'CUSTOMER',              'CRM'),
+        ('RAW', 'BANKING', 'ACCOUNT',               'CORE_BANKING'),
+        ('RAW', 'BANKING', 'ACCOUNT_DAILY_BALANCE', 'CORE_BANKING'),
+        ('RAW', 'BANKING', 'TRANSACTIONS',          'CORE_BANKING'),
+        ('RAW', 'BANKING', 'CARD',                  'CARD_SYSTEM'),
+        ('RAW', 'BANKING', 'LOAN',                  'LOAN_SYSTEM'),
+        ('RAW', 'BANKING', 'LOAN_COLLATERAL',       'LOAN_SYSTEM'),
+        ('RAW', 'BANKING', 'GL_CONTROL_TOTAL',       'GENERAL_LEDGER')
+
+) S
+
+ON  T.DATABASE_NAME = S.DATABASE_NAME
+AND T.SCHEMA_NAME   = S.SCHEMA_NAME
+AND T.OBJECT_NAME   = S.OBJECT_NAME
+AND T.COLUMN_NAME IS NULL
+AND T.OBJECT_LEVEL = 'TABLE'
+AND T.TAG_NAME = 'SOURCE_SYSTEM'
+
+WHEN MATCHED THEN
+
+UPDATE SET
+    T.TAG_VALUE = S.TAG_VALUE,
+    T.SOURCE_TYPE = 'BASELINE',
+    T.SOURCE_REFERENCE =
+        S.DATABASE_NAME || '.' ||
+        S.SCHEMA_NAME || '.' ||
+        S.OBJECT_NAME,
+    T.ASSIGNMENT_REASON =
+        'Source system assignment for RAW banking table',
+    T.APPLY_ORDER = 30,
+    T.ACTIVE_FLAG = TRUE,
+    T.UPDATED_AT = CURRENT_TIMESTAMP()
+
+WHEN NOT MATCHED THEN
+
+INSERT
+(
+    DATABASE_NAME,
+    SCHEMA_NAME,
+    OBJECT_NAME,
+    COLUMN_NAME,
+    OBJECT_LEVEL,
+    OBJECT_TYPE,
+    TAG_NAME,
+    TAG_VALUE,
+    SOURCE_TYPE,
+    SOURCE_REFERENCE,
+    ASSIGNMENT_REASON,
+    APPLY_ORDER,
+    ACTIVE_FLAG
+)
+
+VALUES
+(
+    S.DATABASE_NAME,
+    S.SCHEMA_NAME,
+    S.OBJECT_NAME,
+    NULL,
+    'TABLE',
+    'TABLE',
+    'SOURCE_SYSTEM',
+    S.TAG_VALUE,
+    'BASELINE',
+    S.DATABASE_NAME || '.' ||
+    S.SCHEMA_NAME || '.' ||
+    S.OBJECT_NAME,
+    'Source system assignment for RAW banking table',
+    30,
+    TRUE
+);

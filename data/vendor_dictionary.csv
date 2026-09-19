@@ -1,0 +1,122 @@
+table_name,column_name,description,expected_data_type,sensitivity_hint
+BRANCH,BRANCH_ID,Unique internal identifier for the bank branch.,VARCHAR(20),INTERNAL
+BRANCH,BRANCH_CODE,Business code assigned to the bank branch.,VARCHAR(20),INTERNAL
+BRANCH,BRANCH_NAME,Display name of the bank branch.,VARCHAR(150),INTERNAL
+BRANCH,REGION,Geographic region used to group branches for reporting.,VARCHAR(50),INTERNAL
+BRANCH,CITY,City in which the branch is located.,VARCHAR(100),INTERNAL
+BRANCH,STATE,State or territory in which the branch is located.,VARCHAR(100),INTERNAL
+BRANCH,POSTAL_CODE,Postal code for the branch location.,VARCHAR(20),INTERNAL
+BRANCH,BRANCH_STATUS,Current operating status of the branch.,VARCHAR(20),INTERNAL
+OFFICER,OFFICER_ID,Unique internal identifier for the bank officer.,VARCHAR(20),INTERNAL
+OFFICER,OFFICER_CODE,Business code assigned to the bank officer.,VARCHAR(20),INTERNAL
+OFFICER,OFFICER_NAME,Full name of the bank officer.,VARCHAR(200),INTERNAL
+OFFICER,BRANCH_ID,Identifier of the branch to which the officer is assigned.,VARCHAR(20),INTERNAL
+OFFICER,ROLE,Business role performed by the officer.,VARCHAR(50),INTERNAL
+OFFICER,EMAIL,Work email address recorded for the officer.,VARCHAR(320),INTERNAL
+OFFICER,STATUS,Current employment or activity status of the officer.,VARCHAR(20),INTERNAL
+PRODUCT,PRODUCT_ID,Unique internal identifier for the banking product.,VARCHAR(20),INTERNAL
+PRODUCT,PRODUCT_CODE,Business code used to identify the banking product.,VARCHAR(30),INTERNAL
+PRODUCT,PRODUCT_NAME,Display name of the banking product.,VARCHAR(150),INTERNAL
+PRODUCT,PRODUCT_TYPE,"Category of the banking product such as savings, current account, fixed deposit, or loan.",VARCHAR(50),INTERNAL
+PRODUCT,CURRENCY,ISO-style currency code in which the product is denominated.,VARCHAR(3),INTERNAL
+PRODUCT,INTEREST_RATE,Configured annual interest rate associated with the product.,"NUMBER(9,4)",INTERNAL
+PRODUCT,MIN_BALANCE,Minimum balance requirement configured for the product.,"NUMBER(18,2)",INTERNAL
+PRODUCT,PRODUCT_STATUS,Current availability or lifecycle status of the product.,VARCHAR(20),INTERNAL
+CUSTOMER,CUSTOMER_ID,Unique internal identifier assigned to a customer.,VARCHAR(20),INTERNAL
+CUSTOMER,CUSTOMER_TYPE,Customer category indicating whether the customer is a person or a business.,VARCHAR(30),INTERNAL
+CUSTOMER,FIRST_NAME,First name recorded for an individual customer.,VARCHAR(100),INTERNAL
+CUSTOMER,LAST_NAME,Last name recorded for an individual customer.,VARCHAR(100),INTERNAL
+CUSTOMER,BUSINESS_NAME,Registered or trading name recorded for a business customer.,VARCHAR(250),INTERNAL
+CUSTOMER,TAX_ID,Tax identifier recorded for the customer.,VARCHAR(50),RESTRICTED
+CUSTOMER,DATE_OF_BIRTH,Date of birth recorded for an individual customer.,DATE,PII
+CUSTOMER,EMAIL,Primary contact email address recorded for the customer.,VARCHAR(320),PII
+CUSTOMER,PHONE,Primary contact telephone number recorded for the customer.,VARCHAR(50),PII
+CUSTOMER,ADDRESS_LINE1,Primary street address line recorded for the customer.,VARCHAR(500),INTERNAL
+CUSTOMER,CITY,City recorded as part of the customer address.,VARCHAR(100),INTERNAL
+CUSTOMER,STATE,State or territory recorded as part of the customer address.,VARCHAR(100),INTERNAL
+CUSTOMER,POSTAL_CODE,Postal code recorded as part of the customer address.,VARCHAR(20),INTERNAL
+CUSTOMER,COUNTRY,Country recorded as part of the customer address.,VARCHAR(100),INTERNAL
+CUSTOMER,BRANCH_ID,Identifier of the home or servicing branch associated with the customer.,VARCHAR(20),INTERNAL
+CUSTOMER,OFFICER_ID,Identifier of the relationship officer associated with the customer.,VARCHAR(20),INTERNAL
+CUSTOMER,CUSTOMER_STATUS,Current lifecycle status of the customer relationship.,VARCHAR(30),INTERNAL
+CUSTOMER,CREATED_DATE,Date on which the customer record was created in the source system.,DATE,INTERNAL
+CUSTOMER,UPDATED_TIMESTAMP,Timestamp of the most recent source update to the customer record.,TIMESTAMP_NTZ,INTERNAL
+CUSTOMER,CUST_REF,Vendor-supplied customer reference value used for source reconciliation.,VARCHAR(500),INTERNAL
+CUSTOMER,NOTES,Free-form customer servicing or operational notes.,VARCHAR(2000),INTERNAL
+ACCOUNT,ACCOUNT_ID,Unique internal identifier for the deposit account.,VARCHAR(20),INTERNAL
+ACCOUNT,ACCOUNT_NUMBER,Customer-facing account number assigned to the deposit account.,VARCHAR(50),RESTRICTED
+ACCOUNT,CUSTOMER_ID,Identifier of the customer who owns the account.,VARCHAR(20),INTERNAL
+ACCOUNT,PRODUCT_ID,Identifier of the banking product associated with the account.,VARCHAR(20),INTERNAL
+ACCOUNT,BRANCH_ID,Identifier of the branch associated with the account.,VARCHAR(20),INTERNAL
+ACCOUNT,OPEN_DATE,Date on which the account was opened.,DATE,INTERNAL
+ACCOUNT,CLOSE_DATE,"Date on which the account was closed, when applicable.",DATE,INTERNAL
+ACCOUNT,ACCOUNT_STATUS,Current lifecycle status of the account.,VARCHAR(30),INTERNAL
+ACCOUNT,CURRENCY,Currency code in which the account is denominated.,VARCHAR(3),INTERNAL
+ACCOUNT,CURRENT_BALANCE,Current recorded monetary balance of the account.,"NUMBER(18,2)",INTERNAL
+ACCOUNT,ACCOUNT_TYPE,Business type of the deposit account derived from its product.,VARCHAR(50),INTERNAL
+ACCOUNT_DAILY_BALANCE,ACCOUNT_ID,Identifier of the deposit account for which the daily balance is recorded.,VARCHAR(20),INTERNAL
+ACCOUNT_DAILY_BALANCE,BUSINESS_DATE,Business date to which the daily balance record applies.,DATE,INTERNAL
+ACCOUNT_DAILY_BALANCE,OPENING_BALANCE,Account balance at the beginning of the business date.,"NUMBER(18,2)",INTERNAL
+ACCOUNT_DAILY_BALANCE,CLOSING_BALANCE,Account balance at the end of the business date.,"NUMBER(18,2)",INTERNAL
+ACCOUNT_DAILY_BALANCE,AVAILABLE_BALANCE,Balance available for customer use at the end of the business date.,"NUMBER(18,2)",INTERNAL
+ACCOUNT_DAILY_BALANCE,CURRENCY,Currency code of the recorded balances.,VARCHAR(3),INTERNAL
+ACCOUNT_DAILY_BALANCE,SOURCE_SYSTEM,Source system that produced the daily balance record.,VARCHAR(100),INTERNAL
+ACCOUNT_DAILY_BALANCE,LOAD_TIMESTAMP,Timestamp at which the daily balance record was loaded into RAW.,TIMESTAMP_NTZ,INTERNAL
+CARD,CARD_ID,Unique internal identifier for the synthetic payment card.,VARCHAR(20),INTERNAL
+CARD,ACCOUNT_ID,Identifier of the account to which the card is linked.,VARCHAR(20),INTERNAL
+CARD,CUSTOMER_ID,Identifier of the customer associated with the card.,VARCHAR(20),INTERNAL
+CARD,CARD_NUMBER,Synthetic payment card number associated with the card record.,VARCHAR(50),RESTRICTED
+CARD,CARD_TYPE,"Type of card, such as debit or credit.",VARCHAR(30),INTERNAL
+CARD,ISSUE_DATE,Date on which the card was issued.,DATE,INTERNAL
+CARD,EXPIRY_DATE,Date on which the card is scheduled to expire.,DATE,INTERNAL
+CARD,CARD_STATUS,Current lifecycle status of the card.,VARCHAR(30),INTERNAL
+LOAN,LOAN_ID,Unique internal identifier for the loan.,VARCHAR(20),INTERNAL
+LOAN,LOAN_NUMBER,Business-facing loan number assigned to the facility.,VARCHAR(50),INTERNAL
+LOAN,CUSTOMER_ID,Identifier of the customer who holds the loan.,VARCHAR(20),INTERNAL
+LOAN,PRODUCT_ID,Identifier of the loan product associated with the facility.,VARCHAR(20),INTERNAL
+LOAN,BRANCH_ID,Identifier of the branch responsible for the loan.,VARCHAR(20),INTERNAL
+LOAN,OFFICER_ID,Identifier of the officer responsible for the loan relationship.,VARCHAR(20),INTERNAL
+LOAN,LOAN_TYPE,Business type of the loan derived from the associated product.,VARCHAR(50),INTERNAL
+LOAN,LOAN_AMOUNT,Original principal amount of the loan.,"NUMBER(18,2)",INTERNAL
+LOAN,OUTSTANDING_AMOUNT,Current unpaid principal or exposure amount for the loan.,"NUMBER(18,2)",INTERNAL
+LOAN,INTEREST_RATE,Annual interest rate applied to the loan.,"NUMBER(9,4)",INTERNAL
+LOAN,TENURE_MONTHS,Contractual duration of the loan in months.,"NUMBER(6,0)",INTERNAL
+LOAN,START_DATE,Date on which the loan commenced.,DATE,INTERNAL
+LOAN,MATURITY_DATE,Contractual maturity date of the loan.,DATE,INTERNAL
+LOAN,CREDIT_GRADE,Credit grade assigned to the loan or borrower for risk assessment.,VARCHAR(20),INTERNAL
+LOAN,LOAN_STATUS,Current lifecycle or repayment status of the loan.,VARCHAR(30),INTERNAL
+LOAN_COLLATERAL,COLLATERAL_ID,Unique internal identifier for a collateral item.,VARCHAR(20),INTERNAL
+LOAN_COLLATERAL,LOAN_ID,Identifier of the loan secured by the collateral item.,VARCHAR(20),INTERNAL
+LOAN_COLLATERAL,COLLATERAL_TYPE,Category of collateral securing the loan.,VARCHAR(50),INTERNAL
+LOAN_COLLATERAL,DESCRIPTION,Business description of the collateral item.,VARCHAR(1000),INTERNAL
+LOAN_COLLATERAL,VALUATION_AMOUNT,Latest recorded monetary valuation of the collateral item.,"NUMBER(18,2)",INTERNAL
+LOAN_COLLATERAL,VALUATION_DATE,Date on which the collateral valuation was performed.,DATE,INTERNAL
+LOAN_COLLATERAL,OWNER_NAME,Name of the recorded owner of the collateral item.,VARCHAR(250),INTERNAL
+LOAN_COLLATERAL,COLLATERAL_STATUS,Current lifecycle or eligibility status of the collateral item.,VARCHAR(30),INTERNAL
+GL_CONTROL_TOTAL,GL_CONTROL_ID,Unique identifier for the general-ledger control total record.,VARCHAR(20),INTERNAL
+GL_CONTROL_TOTAL,BUSINESS_DATE,Business date to which the control total applies.,DATE,INTERNAL
+GL_CONTROL_TOTAL,GL_ACCOUNT_CODE,General-ledger account code represented by the control total.,VARCHAR(50),INTERNAL
+GL_CONTROL_TOTAL,PRODUCT_TYPE,Product grouping represented by the control total.,VARCHAR(50),INTERNAL
+GL_CONTROL_TOTAL,CURRENCY,Currency code of the control total.,VARCHAR(3),INTERNAL
+GL_CONTROL_TOTAL,CONTROL_TOTAL,General-ledger control balance used to reconcile deposit balances.,"NUMBER(20,2)",INTERNAL
+GL_CONTROL_TOTAL,TRANSACTION_COUNT,Count of source transactions contributing to the control population.,"NUMBER(38,0)",INTERNAL
+GL_CONTROL_TOTAL,SOURCE_SYSTEM,Source system that produced the general-ledger control record.,VARCHAR(100),INTERNAL
+GL_CONTROL_TOTAL,LOAD_TIMESTAMP,Timestamp at which the control record was loaded into RAW.,TIMESTAMP_NTZ,INTERNAL
+TRANSACTIONS,TRANSACTION_ID,Unique identifier for an account transaction posting.,VARCHAR(30),INTERNAL
+TRANSACTIONS,ACCOUNT_ID,Identifier of the account affected by the transaction.,VARCHAR(20),INTERNAL
+TRANSACTIONS,CUSTOMER_ID,Identifier of the customer associated with the transaction account.,VARCHAR(20),INTERNAL
+TRANSACTIONS,TRANSACTION_DATE,Date on which the transaction occurred.,DATE,INTERNAL
+TRANSACTIONS,POSTING_DATE,Date on which the transaction was posted to the account.,DATE,INTERNAL
+TRANSACTIONS,TRANSACTION_TYPE,Business classification of the transaction event.,VARCHAR(50),INTERNAL
+TRANSACTIONS,TRANSACTION_CODE,Source or business code identifying the transaction type.,VARCHAR(30),INTERNAL
+TRANSACTIONS,AMOUNT,Monetary amount of the transaction posting.,"NUMBER(18,2)",INTERNAL
+TRANSACTIONS,CURRENCY,Currency code of the transaction amount.,VARCHAR(3),INTERNAL
+TRANSACTIONS,DEBIT_CREDIT,Indicator specifying whether the posting is a debit or a credit.,VARCHAR(10),INTERNAL
+TRANSACTIONS,CHANNEL,Channel through which the transaction was initiated.,VARCHAR(50),INTERNAL
+TRANSACTIONS,MERCHANT_NAME,"Merchant or counterparty display name associated with the transaction, when applicable.",VARCHAR(250),INTERNAL
+TRANSACTIONS,STATUS,Current processing status of the transaction.,VARCHAR(30),INTERNAL
+TRANSACTIONS,REFERENCE,External or source reference associated with the transaction.,VARCHAR(1000),INTERNAL
+TRANSACTIONS,MEMO,Free-form transaction memo supplied by the source system.,VARCHAR(2000),INTERNAL
+TRANSACTIONS,BALANCE_AFTER_TRANSACTION,Account balance immediately after the transaction posting.,"NUMBER(18,2)",INTERNAL
+TRANSACTIONS,LOAD_TIMESTAMP,Timestamp at which the transaction record was loaded into RAW.,TIMESTAMP_NTZ,INTERNAL
+TRANSACTIONS,TRANSACTION_GROUP_ID,Identifier used to group related postings belonging to one logical transaction.,VARCHAR(50),INTERNAL
