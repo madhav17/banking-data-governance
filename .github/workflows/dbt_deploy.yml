@@ -1,0 +1,170 @@
+name: dbt Deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dbt-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-dbt-project:
+    name: Deploy dbt Project to Snowflake
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      PYTHON_VERSION: "3.11"
+      DBT_PROJECT_NAME: AVIDIA_BANK_DBT
+      DBT_SOURCE_DIR: dbt
+      DBT_PROFILES_DIR: dbt
+      DBT_DEFAULT_TARGET: prod
+
+      SNOWFLAKE_ACCOUNT: ${{ vars.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_ROLE: SVC_PIPELINE_ROLE
+      SNOWFLAKE_WAREHOUSE: WH_GOVERNANCE_XS
+      SNOWFLAKE_DATABASE: ANALYTICS
+      SNOWFLAKE_SCHEMA: DBT_PROJECTS
+      SNOWFLAKE_AUTHENTICATOR: SNOWFLAKE_JWT
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate GitHub Actions configuration
+        env:
+          SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+        run: |
+          missing=0
+
+          require_variable() {
+            if [ -z "$2" ]; then
+              echo "::error title=Missing GitHub variable::$1 is not configured in Settings > Secrets and variables > Actions > Variables."
+              missing=1
+            else
+              echo "GitHub variable $1 configured: yes"
+            fi
+          }
+
+          require_secret() {
+            if [ -z "$2" ]; then
+              echo "::error title=Missing GitHub secret::$1 is not configured in Settings > Secrets and variables > Actions > Secrets."
+              missing=1
+            else
+              echo "GitHub secret $1 configured: yes"
+            fi
+          }
+
+          require_variable "SNOWFLAKE_ACCOUNT" "${SNOWFLAKE_ACCOUNT}"
+          require_secret "SNOWFLAKE_USER" "${SNOWFLAKE_USER}"
+          require_secret "SNOWFLAKE_PRIVATE_KEY" "${SNOWFLAKE_PRIVATE_KEY}"
+
+          if [ "${missing}" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install Snowflake CLI
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pipx
+          mkdir -p "${RUNNER_TEMP}/pipx-bin"
+          export PIPX_HOME="${RUNNER_TEMP}/pipx"
+          export PIPX_BIN_DIR="${RUNNER_TEMP}/pipx-bin"
+          python -m pipx install snowflake-cli==3.27.0
+          echo "${PIPX_BIN_DIR}" >> "${GITHUB_PATH}"
+          export PATH="${PIPX_BIN_DIR}:${PATH}"
+          snow --version
+
+      - name: Write Snowflake private key
+        env:
+          SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+          SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
+        run: |
+          mkdir -p "${RUNNER_TEMP}/snowflake"
+          printf '%s\n' "${SNOWFLAKE_PRIVATE_KEY}" > "${RUNNER_TEMP}/snowflake/snowflake_key.p8"
+          chmod 600 "${RUNNER_TEMP}/snowflake/snowflake_key.p8"
+
+          {
+            echo "SNOWFLAKE_PRIVATE_KEY_FILE=${RUNNER_TEMP}/snowflake/snowflake_key.p8"
+          } >> "${GITHUB_ENV}"
+
+          if [ -n "${SNOWFLAKE_PRIVATE_KEY_PASSPHRASE:-}" ]; then
+            echo "PRIVATE_KEY_PASSPHRASE=${SNOWFLAKE_PRIVATE_KEY_PASSPHRASE}" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Print deployment configuration
+        run: |
+          echo "GitHub ref: ${GITHUB_REF}"
+          echo "GitHub branch/ref name: ${GITHUB_REF_NAME}"
+          echo "GitHub SHA: ${GITHUB_SHA}"
+          echo "dbt project name: ${DBT_PROJECT_NAME}"
+          echo "dbt source dir: ${DBT_SOURCE_DIR}"
+          echo "dbt profiles dir: ${DBT_PROFILES_DIR}"
+          echo "dbt default target: ${DBT_DEFAULT_TARGET}"
+          echo "Snowflake account: ${SNOWFLAKE_ACCOUNT}"
+          echo "Snowflake user secret configured: yes"
+          echo "Snowflake role: ${SNOWFLAKE_ROLE}"
+          echo "Snowflake warehouse: ${SNOWFLAKE_WAREHOUSE}"
+          echo "Snowflake database: ${SNOWFLAKE_DATABASE}"
+          echo "Snowflake DBT PROJECT schema: ${SNOWFLAKE_SCHEMA}"
+          echo "Snowflake private key file configured: yes"
+
+          if [ -n "${PRIVATE_KEY_PASSPHRASE:-}" ]; then
+            echo "Snowflake private key passphrase configured: yes"
+          else
+            echo "Snowflake private key passphrase configured: no"
+          fi
+
+      - name: Verify Snowflake connection
+        run: |
+          snow sql \
+            --temporary-connection \
+            --account "${SNOWFLAKE_ACCOUNT}" \
+            --user "${SNOWFLAKE_USER}" \
+            --authenticator "${SNOWFLAKE_AUTHENTICATOR}" \
+            --private-key-file "${SNOWFLAKE_PRIVATE_KEY_FILE}" \
+            --role "${SNOWFLAKE_ROLE}" \
+            --warehouse "${SNOWFLAKE_WAREHOUSE}" \
+            --database "${SNOWFLAKE_DATABASE}" \
+            --schema "${SNOWFLAKE_SCHEMA}" \
+            -q "SELECT CURRENT_USER(), CURRENT_ROLE(), CURRENT_DATABASE(), CURRENT_SCHEMA(), CURRENT_WAREHOUSE();"
+
+      - name: Deploy dbt Project object
+        run: |
+          snow dbt deploy "${DBT_PROJECT_NAME}" \
+            --source "${DBT_SOURCE_DIR}" \
+            --profiles-dir "${DBT_PROFILES_DIR}" \
+            --default-target "${DBT_DEFAULT_TARGET}" \
+            --auto-compile \
+            --temporary-connection \
+            --account "${SNOWFLAKE_ACCOUNT}" \
+            --user "${SNOWFLAKE_USER}" \
+            --authenticator "${SNOWFLAKE_AUTHENTICATOR}" \
+            --private-key-file "${SNOWFLAKE_PRIVATE_KEY_FILE}" \
+            --database "${SNOWFLAKE_DATABASE}" \
+            --schema "${SNOWFLAKE_SCHEMA}" \
+            --role "${SNOWFLAKE_ROLE}" \
+            --warehouse "${SNOWFLAKE_WAREHOUSE}"
+
+      - name: Verify DBT PROJECT deployment
+        run: |
+          snow dbt describe "${DBT_PROJECT_NAME}" \
+            --temporary-connection \
+            --account "${SNOWFLAKE_ACCOUNT}" \
+            --user "${SNOWFLAKE_USER}" \
+            --authenticator "${SNOWFLAKE_AUTHENTICATOR}" \
+            --private-key-file "${SNOWFLAKE_PRIVATE_KEY_FILE}" \
+            --database "${SNOWFLAKE_DATABASE}" \
+            --schema "${SNOWFLAKE_SCHEMA}" \
+            --role "${SNOWFLAKE_ROLE}" \
+            --warehouse "${SNOWFLAKE_WAREHOUSE}"

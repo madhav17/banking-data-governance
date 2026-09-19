@@ -22,7 +22,6 @@ jobs:
       DBT_SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
       DBT_SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
       DBT_SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
-      DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
       DBT_CI_SCHEMA: ${{ vars.DBT_CI_SCHEMA }}
       DBT_THREADS: ${{ vars.DBT_THREADS }}
 
@@ -30,26 +29,90 @@ jobs:
       SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
       SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
       SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
+      SNOWFLAKE_BASE_DATABASE: ${{ vars.SNOWFLAKE_BASE_DATABASE }}
+      SNOWFLAKE_CI_DB_PREFIX: ${{ vars.SNOWFLAKE_CI_DB_PREFIX }}
       SNOWFLAKE_AUTHENTICATOR: SNOWFLAKE_JWT
-      PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate GitHub Actions configuration
+        env:
+          SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+        run: |
+          missing=0
+
+          require_variable() {
+            if [ -z "$2" ]; then
+              echo "::error title=Missing GitHub variable::$1 is not configured in Settings > Secrets and variables > Actions > Variables."
+              missing=1
+            else
+              echo "GitHub variable $1 configured: yes"
+            fi
+          }
+
+          require_secret() {
+            if [ -z "$2" ]; then
+              echo "::error title=Missing GitHub secret::$1 is not configured in Settings > Secrets and variables > Actions > Secrets."
+              missing=1
+            else
+              echo "GitHub secret $1 configured: yes"
+            fi
+          }
+
+          require_variable "SNOWFLAKE_ACCOUNT" "${SNOWFLAKE_ACCOUNT}"
+          require_variable "SNOWFLAKE_ROLE" "${SNOWFLAKE_ROLE}"
+          require_variable "SNOWFLAKE_WAREHOUSE" "${SNOWFLAKE_WAREHOUSE}"
+          require_variable "SNOWFLAKE_BASE_DATABASE" "${SNOWFLAKE_BASE_DATABASE}"
+          require_secret "SNOWFLAKE_USER" "${SNOWFLAKE_USER}"
+          require_secret "SNOWFLAKE_PRIVATE_KEY" "${SNOWFLAKE_PRIVATE_KEY}"
+
+          if [ -z "${SNOWFLAKE_CI_DB_PREFIX:-}" ]; then
+            echo "SNOWFLAKE_CI_DB_PREFIX not configured; defaulting to AVIDIA_CI."
+            echo "SNOWFLAKE_CI_DB_PREFIX=AVIDIA_CI" >> "${GITHUB_ENV}"
+          fi
+
+          if [ -z "${DBT_CI_SCHEMA:-}" ]; then
+            echo "DBT_CI_SCHEMA not configured; defaulting to MARTS_CI."
+            echo "DBT_CI_SCHEMA=MARTS_CI" >> "${GITHUB_ENV}"
+          fi
+
+          if [ -z "${DBT_THREADS:-}" ]; then
+            echo "DBT_THREADS not configured; defaulting to 4."
+            echo "DBT_THREADS=4" >> "${GITHUB_ENV}"
+          fi
+
+          if [ "${missing}" -ne 0 ]; then
+            exit 1
+          fi
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: dbt/requirements-ci.txt
 
       - name: Install dbt, SQLFluff and Snowflake CLI
         run: |
           python -m pip install --upgrade pip
-          pip install dbt-snowflake sqlfluff sqlfluff-templater-dbt snowflake-cli
+          pip install -r dbt/requirements-ci.txt
+          python -m pip install pipx
+          mkdir -p "${RUNNER_TEMP}/pipx-bin"
+          export PIPX_HOME="${RUNNER_TEMP}/pipx"
+          export PIPX_BIN_DIR="${RUNNER_TEMP}/pipx-bin"
+          python -m pipx install snowflake-cli==3.27.0
+          echo "${PIPX_BIN_DIR}" >> "${GITHUB_PATH}"
+          export PATH="${PIPX_BIN_DIR}:${PATH}"
+          dbt --version
+          sqlfluff --version
+          snow --version
 
       - name: Write Snowflake private key
         env:
           SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+          SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
         run: |
           mkdir -p "${RUNNER_TEMP}/snowflake"
           printf '%s\n' "${SNOWFLAKE_PRIVATE_KEY}" > "${RUNNER_TEMP}/snowflake/snowflake_key.p8"
@@ -59,13 +122,20 @@ jobs:
             echo "SNOWFLAKE_PRIVATE_KEY_FILE=${RUNNER_TEMP}/snowflake/snowflake_key.p8"
           } >> "${GITHUB_ENV}"
 
+          if [ -n "${SNOWFLAKE_PRIVATE_KEY_PASSPHRASE:-}" ]; then
+            {
+              echo "DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE=${SNOWFLAKE_PRIVATE_KEY_PASSPHRASE}"
+              echo "PRIVATE_KEY_PASSPHRASE=${SNOWFLAKE_PRIVATE_KEY_PASSPHRASE}"
+            } >> "${GITHUB_ENV}"
+          fi
+
       - name: Prepare isolated CI clone name
         run: |
-          CI_DB_PREFIX="${{ vars.SNOWFLAKE_CI_DB_PREFIX }}"
+          CI_DB_PREFIX="${SNOWFLAKE_CI_DB_PREFIX}"
           CI_DB_PREFIX="${CI_DB_PREFIX:-AVIDIA_CI}"
           CI_DATABASE="${CI_DB_PREFIX}_${GITHUB_RUN_ID}"
-          BASE_DATABASE="${{ vars.SNOWFLAKE_BASE_DATABASE }}"
-          CI_SCHEMA="${{ vars.DBT_CI_SCHEMA }}"
+          BASE_DATABASE="${SNOWFLAKE_BASE_DATABASE}"
+          CI_SCHEMA="${DBT_CI_SCHEMA}"
           CI_SCHEMA="${CI_SCHEMA:-MARTS_CI}"
 
           for identifier in "${CI_DATABASE}" "${BASE_DATABASE}" "${CI_SCHEMA}"; do
@@ -83,6 +153,41 @@ jobs:
             echo "SNOWFLAKE_DATABASE=${CI_DATABASE}"
             echo "DBT_CI_SCHEMA=${CI_SCHEMA}"
           } >> "${GITHUB_ENV}"
+
+      - name: Print CI configuration
+        run: |
+          echo "GitHub ref: ${GITHUB_REF}"
+          echo "GitHub branch/ref name: ${GITHUB_REF_NAME}"
+          echo "GitHub run id: ${GITHUB_RUN_ID}"
+          echo "dbt project dir: ${DBT_PROJECT_DIR}"
+          echo "dbt profiles dir: ${DBT_PROFILES_DIR}"
+          echo "dbt target: ${DBT_TARGET}"
+          echo "Snowflake account: ${SNOWFLAKE_ACCOUNT}"
+          echo "Snowflake role: ${SNOWFLAKE_ROLE}"
+          echo "Snowflake warehouse: ${SNOWFLAKE_WAREHOUSE}"
+          echo "Snowflake authenticator: ${SNOWFLAKE_AUTHENTICATOR}"
+          echo "Snowflake base database: ${BASE_DATABASE}"
+          echo "Snowflake CI database: ${CI_DATABASE}"
+          echo "dbt CI schema: ${DBT_CI_SCHEMA}"
+          echo "dbt threads: ${DBT_THREADS}"
+
+          if [ -n "${SNOWFLAKE_USER:-}" ]; then
+            echo "Snowflake user secret configured: yes"
+          else
+            echo "Snowflake user secret configured: no"
+          fi
+
+          if [ -f "${DBT_SNOWFLAKE_PRIVATE_KEY_PATH:-}" ]; then
+            echo "Snowflake private key file configured: yes"
+          else
+            echo "Snowflake private key file configured: no"
+          fi
+
+          if [ -n "${DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE:-}" ]; then
+            echo "Snowflake private key passphrase configured: yes"
+          else
+            echo "Snowflake private key passphrase configured: no"
+          fi
 
       - name: SQLFluff lint
         working-directory: dbt

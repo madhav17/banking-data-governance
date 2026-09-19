@@ -157,6 +157,16 @@ ENV/
 env.bak/
 venv.bak/
 
+# Snowflake CLI credentials and private keys
+.snowflake/
+*.p8
+*.pem
+*.key
+*.key.pub
+credentials.yml
+credentials.yaml
+secrets.toml
+
 # Spyder project settings
 .spyderproject
 .spyproject

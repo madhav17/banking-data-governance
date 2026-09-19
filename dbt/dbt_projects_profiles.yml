@@ -1,41 +1,10 @@
 avidia_banking_governance:
-  target: "{{ env_var('DBT_TARGET', 'dev') }}"
+  target: prod
   outputs:
-    dev:
-      type: snowflake
-      account: "{{ env_var('DBT_SNOWFLAKE_ACCOUNT') }}"
-      user: "{{ env_var('DBT_SNOWFLAKE_USER') }}"
-      private_key_path: "{{ env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PATH') }}"
-      private_key_passphrase: "{{ env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE', '') }}"
-      role: "{{ env_var('DBT_SNOWFLAKE_ROLE') }}"
-      warehouse: "{{ env_var('DBT_SNOWFLAKE_WAREHOUSE') }}"
-      database: "{{ env_var('DBT_SNOWFLAKE_DATABASE') }}"
-      schema: "{{ env_var('DBT_DEV_SCHEMA', 'MARTS_DEV') }}"
-      threads: "{{ env_var('DBT_THREADS', '4') | as_number }}"
-      client_session_keep_alive: false
-
-    ci:
-      type: snowflake
-      account: "{{ env_var('DBT_SNOWFLAKE_ACCOUNT') }}"
-      user: "{{ env_var('DBT_SNOWFLAKE_USER') }}"
-      private_key_path: "{{ env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PATH') }}"
-      private_key_passphrase: "{{ env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE', '') }}"
-      role: "{{ env_var('DBT_SNOWFLAKE_ROLE') }}"
-      warehouse: "{{ env_var('DBT_SNOWFLAKE_WAREHOUSE') }}"
-      database: "{{ env_var('DBT_SNOWFLAKE_DATABASE') }}"
-      schema: "{{ env_var('DBT_CI_SCHEMA', 'MARTS_CI') }}"
-      threads: "{{ env_var('DBT_THREADS', '4') | as_number }}"
-      client_session_keep_alive: false
-
     prod:
       type: snowflake
-      account: "{{ env_var('DBT_SNOWFLAKE_ACCOUNT') }}"
-      user: "{{ env_var('DBT_SNOWFLAKE_USER') }}"
-      private_key_path: "{{ env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PATH') }}"
-      private_key_passphrase: "{{ env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE', '') }}"
-      role: "{{ env_var('DBT_SNOWFLAKE_ROLE') }}"
-      warehouse: "{{ env_var('DBT_SNOWFLAKE_WAREHOUSE') }}"
-      database: "{{ env_var('DBT_SNOWFLAKE_DATABASE') }}"
-      schema: "{{ env_var('DBT_PROD_SCHEMA', 'MARTS') }}"
-      threads: "{{ env_var('DBT_THREADS', '4') | as_number }}"
-      client_session_keep_alive: false
+      database: ANALYTICS
+      schema: MARTS
+      warehouse: WH_GOVERNANCE_XS
+      role: SVC_PIPELINE_ROLE
+      threads: 4
