@@ -169,7 +169,7 @@ can use `SECURITYADMIN`:
 ```sh
 snow sql \
   -c <admin_setup_connection> \
-  -f setup/08_prepare_streamlit_deployment.sql
+  -f streamlit_setup/01_prepare_streamlit_deployment.sql
 ```
 
 Expected result: `CATALOG_APP_ROLE` exists, is granted to `SVC_PIPELINE`, and has
@@ -180,6 +180,9 @@ only the current dummy deployment privileges:
 - `CREATE STREAMLIT` on `GOVERNANCE.CATALOG`
 - `CREATE STAGE` on `GOVERNANCE.CATALOG`
 - `USAGE` on `WH_GOVERNANCE_XS`
+
+The setup script also grants `CATALOG_APP_ROLE` to the user that runs the setup
+script. This lets you switch to `CATALOG_APP_ROLE` in Snowsight to view the app.
 
 No `ACCOUNTADMIN`, account-level grants, `ACCOUNT_USAGE`, DQ, MARTS,
 classification, or lineage privileges are granted in this phase.
@@ -274,6 +277,15 @@ You can also open the app from Snowsight:
 Snowsight -> Projects -> Streamlit -> AVIDIA_DATA_CATALOG
 ```
 
+Before opening the app in Snowsight, switch your active role to:
+
+```text
+CATALOG_APP_ROLE
+```
+
+If you open the app with `ACCOUNTADMIN` or another role that does not have
+`USAGE` on the Streamlit object, Snowflake will show an access-control error.
+
 For now, only the deployment/owner role is prepared. Viewer grants for
 `DATA_OWNER`, `DATA_STEWARD`, and analyst roles will be added later when the app
 uses real governed metadata.
@@ -324,11 +336,11 @@ using the warehouse.
 Re-run:
 
 ```sh
-snow sql -c <admin_setup_connection> -f ../setup/08_prepare_streamlit_deployment.sql
+snow sql -c <admin_setup_connection> -f ../streamlit_setup/01_prepare_streamlit_deployment.sql
 ```
 
-If you are already in `catalog_app/`, use `../setup/...`; from the repository
-root, use `setup/...`.
+If you are already in `catalog_app/`, use `../streamlit_setup/...`; from the
+repository root, use `streamlit_setup/...`.
 
 ### Missing Stage
 
@@ -401,5 +413,13 @@ snow streamlit get-url AVIDIA_DATA_CATALOG \
 ```
 
 If the URL opens but access is denied, confirm you are using a user that can
-assume `CATALOG_APP_ROLE`. Broader viewer access will be granted in a later
-phase.
+assume `CATALOG_APP_ROLE`, and switch your active Snowsight role to
+`CATALOG_APP_ROLE`. If the setup was run by a different admin user, grant the
+role to your Snowflake user:
+
+```sql
+USE ROLE SECURITYADMIN;
+GRANT ROLE CATALOG_APP_ROLE TO USER <YOUR_USER_NAME>;
+```
+
+Broader viewer access will be granted in a later phase.

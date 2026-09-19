@@ -1,6 +1,6 @@
 --snow sql -c avidia -f streamlit_setup/01_prepare_streamlit_deployment.sql
 -- ============================================================================
--- File: setup/08_prepare_streamlit_deployment.sql
+-- File: streamlit_setup/01_prepare_streamlit_deployment.sql
 --
 -- Purpose:
 --   Prepare the minimum Snowflake privileges required to deploy the mock
@@ -25,6 +25,11 @@ CREATE ROLE IF NOT EXISTS CATALOG_APP_ROLE
 
 GRANT ROLE CATALOG_APP_ROLE
 TO USER SVC_PIPELINE;
+
+SET SETUP_VIEWER_USER = CURRENT_USER();
+
+GRANT ROLE CATALOG_APP_ROLE
+TO USER IDENTIFIER($SETUP_VIEWER_USER);
 
 
 -- ============================================================================
