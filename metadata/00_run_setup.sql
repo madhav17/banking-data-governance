@@ -1,0 +1,9 @@
+!source metadata/permissions.sql
+!source metadata/01_create_governance_schemas.sql
+!source metadata/02_create_tag_taxonomy.sql
+!source metadata/03_create_tag_assignment.sql
+!source metadata/04_seed_base_tag_assignments.sql
+!source metadata/05_sync_cde_tags.sql
+!source metadata/06_create_apply_tag_procedure.sql
+!source metadata/07_apply_tags.sql
+!source metadata/08_validate_tags.sql
