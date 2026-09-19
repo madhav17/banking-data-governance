@@ -30,12 +30,64 @@ jobs:
       SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
       SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
       SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
+      SNOWFLAKE_BASE_DATABASE: ${{ vars.SNOWFLAKE_BASE_DATABASE }}
+      SNOWFLAKE_CI_DB_PREFIX: ${{ vars.SNOWFLAKE_CI_DB_PREFIX }}
       SNOWFLAKE_AUTHENTICATOR: SNOWFLAKE_JWT
       PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate GitHub Actions configuration
+        env:
+          SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+        run: |
+          missing=0
+
+          require_variable() {
+            if [ -z "$2" ]; then
+              echo "::error title=Missing GitHub variable::$1 is not configured in Settings > Secrets and variables > Actions > Variables."
+              missing=1
+            else
+              echo "GitHub variable $1 configured: yes"
+            fi
+          }
+
+          require_secret() {
+            if [ -z "$2" ]; then
+              echo "::error title=Missing GitHub secret::$1 is not configured in Settings > Secrets and variables > Actions > Secrets."
+              missing=1
+            else
+              echo "GitHub secret $1 configured: yes"
+            fi
+          }
+
+          require_variable "SNOWFLAKE_ACCOUNT" "${SNOWFLAKE_ACCOUNT}"
+          require_variable "SNOWFLAKE_ROLE" "${SNOWFLAKE_ROLE}"
+          require_variable "SNOWFLAKE_WAREHOUSE" "${SNOWFLAKE_WAREHOUSE}"
+          require_variable "SNOWFLAKE_BASE_DATABASE" "${SNOWFLAKE_BASE_DATABASE}"
+          require_secret "SNOWFLAKE_USER" "${SNOWFLAKE_USER}"
+          require_secret "SNOWFLAKE_PRIVATE_KEY" "${SNOWFLAKE_PRIVATE_KEY}"
+
+          if [ -z "${SNOWFLAKE_CI_DB_PREFIX:-}" ]; then
+            echo "SNOWFLAKE_CI_DB_PREFIX not configured; defaulting to AVIDIA_CI."
+            echo "SNOWFLAKE_CI_DB_PREFIX=AVIDIA_CI" >> "${GITHUB_ENV}"
+          fi
+
+          if [ -z "${DBT_CI_SCHEMA:-}" ]; then
+            echo "DBT_CI_SCHEMA not configured; defaulting to MARTS_CI."
+            echo "DBT_CI_SCHEMA=MARTS_CI" >> "${GITHUB_ENV}"
+          fi
+
+          if [ -z "${DBT_THREADS:-}" ]; then
+            echo "DBT_THREADS not configured; defaulting to 4."
+            echo "DBT_THREADS=4" >> "${GITHUB_ENV}"
+          fi
+
+          if [ "${missing}" -ne 0 ]; then
+            exit 1
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -73,11 +125,11 @@ jobs:
 
       - name: Prepare isolated CI clone name
         run: |
-          CI_DB_PREFIX="${{ vars.SNOWFLAKE_CI_DB_PREFIX }}"
+          CI_DB_PREFIX="${SNOWFLAKE_CI_DB_PREFIX}"
           CI_DB_PREFIX="${CI_DB_PREFIX:-AVIDIA_CI}"
           CI_DATABASE="${CI_DB_PREFIX}_${GITHUB_RUN_ID}"
-          BASE_DATABASE="${{ vars.SNOWFLAKE_BASE_DATABASE }}"
-          CI_SCHEMA="${{ vars.DBT_CI_SCHEMA }}"
+          BASE_DATABASE="${SNOWFLAKE_BASE_DATABASE}"
+          CI_SCHEMA="${DBT_CI_SCHEMA}"
           CI_SCHEMA="${CI_SCHEMA:-MARTS_CI}"
 
           for identifier in "${CI_DATABASE}" "${BASE_DATABASE}" "${CI_SCHEMA}"; do
