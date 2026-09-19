@@ -1,0 +1,15 @@
+!source transformations/staging/01_create_staging_schema.sql
+!source transformations/staging/02_create_staging_tables.sql
+!source transformations/staging/02_validate_raw_for_staging.sql
+!source transformations/staging/03_merge_customer.sql
+!source transformations/staging/04_merge_account.sql
+!source transformations/staging/05_merge_account_daily_balance.sql
+!source transformations/staging/06_merge_branch.sql
+!source transformations/staging/07_merge_card.sql
+!source transformations/staging/08_merge_gl_control_total.sql
+!source transformations/staging/09_merge_loan.sql
+!source transformations/staging/10_merge_loan_collateral.sql
+!source transformations/staging/11_merge_officer.sql
+!source transformations/staging/12_merge_product.sql
+!source transformations/staging/13_merge_transactions.sql
+!source transformations/staging/14_validate_staging.sql
