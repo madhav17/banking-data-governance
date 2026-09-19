@@ -22,7 +22,6 @@ jobs:
       DBT_SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
       DBT_SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
       DBT_SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
-      DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
       DBT_CI_SCHEMA: ${{ vars.DBT_CI_SCHEMA }}
       DBT_THREADS: ${{ vars.DBT_THREADS }}
 
@@ -33,7 +32,6 @@ jobs:
       SNOWFLAKE_BASE_DATABASE: ${{ vars.SNOWFLAKE_BASE_DATABASE }}
       SNOWFLAKE_CI_DB_PREFIX: ${{ vars.SNOWFLAKE_CI_DB_PREFIX }}
       SNOWFLAKE_AUTHENTICATOR: SNOWFLAKE_JWT
-      PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
 
     steps:
       - name: Checkout
@@ -114,6 +112,7 @@ jobs:
       - name: Write Snowflake private key
         env:
           SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+          SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
         run: |
           mkdir -p "${RUNNER_TEMP}/snowflake"
           printf '%s\n' "${SNOWFLAKE_PRIVATE_KEY}" > "${RUNNER_TEMP}/snowflake/snowflake_key.p8"
@@ -122,6 +121,13 @@ jobs:
             echo "DBT_SNOWFLAKE_PRIVATE_KEY_PATH=${RUNNER_TEMP}/snowflake/snowflake_key.p8"
             echo "SNOWFLAKE_PRIVATE_KEY_FILE=${RUNNER_TEMP}/snowflake/snowflake_key.p8"
           } >> "${GITHUB_ENV}"
+
+          if [ -n "${SNOWFLAKE_PRIVATE_KEY_PASSPHRASE:-}" ]; then
+            {
+              echo "DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE=${SNOWFLAKE_PRIVATE_KEY_PASSPHRASE}"
+              echo "PRIVATE_KEY_PASSPHRASE=${SNOWFLAKE_PRIVATE_KEY_PASSPHRASE}"
+            } >> "${GITHUB_ENV}"
+          fi
 
       - name: Prepare isolated CI clone name
         run: |
