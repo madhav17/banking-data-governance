@@ -1,0 +1,81 @@
+/*==============================================================================
+  AVIDIA BANKING DATA GOVERNANCE
+  File: transformations/staging/03_merge_account.sql
+
+  Purpose:
+      Standardize RAW.BANKING.ACCOUNT and MERGE it into STG_ACCOUNT.
+
+  Important:
+      ACCOUNT_NUMBER remains fully present for later classification/masking.
+
+  Data-quality boundary:
+      - ACCOUNT_ID must be present.
+      - No customer/product/branch FK filtering.
+      - No status or balance business-validity filtering.
+==============================================================================*/
+
+USE ROLE DATA_ENGINEER;
+USE WAREHOUSE WH_GOVERNANCE_XS;
+
+MERGE INTO ANALYTICS.STAGING.STG_ACCOUNT T
+USING
+(
+    SELECT
+        TRIM(ACCOUNT_ID)                       AS ACCOUNT_ID,
+        NULLIF(TRIM(ACCOUNT_NUMBER), '')       AS ACCOUNT_NUMBER,
+        NULLIF(TRIM(CUSTOMER_ID), '')          AS CUSTOMER_ID,
+        NULLIF(TRIM(PRODUCT_ID), '')           AS PRODUCT_ID,
+        NULLIF(TRIM(BRANCH_ID), '')            AS BRANCH_ID,
+        OPEN_DATE,
+        CLOSE_DATE,
+        NULLIF(UPPER(TRIM(ACCOUNT_STATUS)), '') AS ACCOUNT_STATUS,
+        NULLIF(UPPER(TRIM(CURRENCY)), '')      AS CURRENCY,
+        CURRENT_BALANCE,
+        NULLIF(UPPER(TRIM(ACCOUNT_TYPE)), '')  AS ACCOUNT_TYPE
+    FROM RAW.BANKING.ACCOUNT
+    WHERE ACCOUNT_ID IS NOT NULL
+      AND TRIM(ACCOUNT_ID) <> ''
+) S
+ON T.ACCOUNT_ID = S.ACCOUNT_ID
+
+WHEN MATCHED
+AND HASH(
+        T.ACCOUNT_NUMBER, T.CUSTOMER_ID, T.PRODUCT_ID, T.BRANCH_ID,
+        T.OPEN_DATE, T.CLOSE_DATE, T.ACCOUNT_STATUS,
+        T.CURRENCY, T.CURRENT_BALANCE, T.ACCOUNT_TYPE
+    )
+    <>
+    HASH(
+        S.ACCOUNT_NUMBER, S.CUSTOMER_ID, S.PRODUCT_ID, S.BRANCH_ID,
+        S.OPEN_DATE, S.CLOSE_DATE, S.ACCOUNT_STATUS,
+        S.CURRENCY, S.CURRENT_BALANCE, S.ACCOUNT_TYPE
+    )
+THEN UPDATE SET
+    T.ACCOUNT_NUMBER      = S.ACCOUNT_NUMBER,
+    T.CUSTOMER_ID         = S.CUSTOMER_ID,
+    T.PRODUCT_ID          = S.PRODUCT_ID,
+    T.BRANCH_ID           = S.BRANCH_ID,
+    T.OPEN_DATE           = S.OPEN_DATE,
+    T.CLOSE_DATE          = S.CLOSE_DATE,
+    T.ACCOUNT_STATUS      = S.ACCOUNT_STATUS,
+    T.CURRENCY            = S.CURRENCY,
+    T.CURRENT_BALANCE     = S.CURRENT_BALANCE,
+    T.ACCOUNT_TYPE        = S.ACCOUNT_TYPE,
+    T.STG_UPDATED_AT      = CURRENT_TIMESTAMP()
+
+WHEN NOT MATCHED THEN INSERT
+(
+    ACCOUNT_ID, ACCOUNT_NUMBER, CUSTOMER_ID, PRODUCT_ID, BRANCH_ID,
+    OPEN_DATE, CLOSE_DATE, ACCOUNT_STATUS, CURRENCY,
+    CURRENT_BALANCE, ACCOUNT_TYPE
+)
+VALUES
+(
+    S.ACCOUNT_ID, S.ACCOUNT_NUMBER, S.CUSTOMER_ID, S.PRODUCT_ID, S.BRANCH_ID,
+    S.OPEN_DATE, S.CLOSE_DATE, S.ACCOUNT_STATUS, S.CURRENCY,
+    S.CURRENT_BALANCE, S.ACCOUNT_TYPE
+);
+
+SELECT
+    (SELECT COUNT(*) FROM RAW.BANKING.ACCOUNT) AS RAW_ROWS,
+    (SELECT COUNT(*) FROM ANALYTICS.STAGING.STG_ACCOUNT) AS STAGING_ROWS;

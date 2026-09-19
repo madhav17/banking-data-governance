@@ -1,0 +1,129 @@
+name: dbt CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - "**"
+
+permissions:
+  contents: read
+
+jobs:
+  dbt-ci:
+    name: dbt parse, compile, clone, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      PYTHON_VERSION: "3.11"
+      DBT_PROJECT_DIR: dbt
+      DBT_PROFILES_DIR: dbt
+      DBT_TARGET: ci
+
+      DBT_SNOWFLAKE_ACCOUNT: ${{ vars.SNOWFLAKE_ACCOUNT }}
+      DBT_SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      DBT_SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
+      DBT_SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
+      DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
+      DBT_CI_SCHEMA: ${{ vars.DBT_CI_SCHEMA }}
+      DBT_THREADS: ${{ vars.DBT_THREADS }}
+
+      SNOWFLAKE_ACCOUNT: ${{ vars.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
+      SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
+      SNOWFLAKE_AUTHENTICATOR: SNOWFLAKE_JWT
+      PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dbt, SQLFluff and Snowflake CLI
+        run: |
+          python -m pip install --upgrade pip
+          pip install dbt-snowflake sqlfluff sqlfluff-templater-dbt snowflake-cli
+
+      - name: Write Snowflake private key
+        env:
+          SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+        run: |
+          mkdir -p "${RUNNER_TEMP}/snowflake"
+          printf '%s\n' "${SNOWFLAKE_PRIVATE_KEY}" > "${RUNNER_TEMP}/snowflake/snowflake_key.p8"
+          chmod 600 "${RUNNER_TEMP}/snowflake/snowflake_key.p8"
+          {
+            echo "DBT_SNOWFLAKE_PRIVATE_KEY_PATH=${RUNNER_TEMP}/snowflake/snowflake_key.p8"
+            echo "SNOWFLAKE_PRIVATE_KEY_FILE=${RUNNER_TEMP}/snowflake/snowflake_key.p8"
+          } >> "${GITHUB_ENV}"
+
+      - name: Prepare isolated CI clone name
+        run: |
+          CI_DB_PREFIX="${{ vars.SNOWFLAKE_CI_DB_PREFIX }}"
+          CI_DB_PREFIX="${CI_DB_PREFIX:-AVIDIA_CI}"
+          CI_DATABASE="${CI_DB_PREFIX}_${GITHUB_RUN_ID}"
+          BASE_DATABASE="${{ vars.SNOWFLAKE_BASE_DATABASE }}"
+          CI_SCHEMA="${{ vars.DBT_CI_SCHEMA }}"
+          CI_SCHEMA="${CI_SCHEMA:-MARTS_CI}"
+
+          for identifier in "${CI_DATABASE}" "${BASE_DATABASE}" "${CI_SCHEMA}"; do
+            if ! [[ "${identifier}" =~ ^[A-Z][A-Z0-9_]*$ ]]; then
+              echo "Invalid Snowflake identifier: ${identifier}" >&2
+              exit 1
+            fi
+          done
+
+          {
+            echo "CI_DATABASE=${CI_DATABASE}"
+            echo "BASE_DATABASE=${BASE_DATABASE}"
+            echo "CI_SCHEMA=${CI_SCHEMA}"
+            echo "DBT_SNOWFLAKE_DATABASE=${CI_DATABASE}"
+            echo "SNOWFLAKE_DATABASE=${CI_DATABASE}"
+            echo "DBT_CI_SCHEMA=${CI_SCHEMA}"
+          } >> "${GITHUB_ENV}"
+
+      - name: SQLFluff lint
+        working-directory: dbt
+        run: sqlfluff lint .
+
+      - name: Install dbt dependencies
+        run: dbt deps --project-dir "${DBT_PROJECT_DIR}" --profiles-dir "${DBT_PROFILES_DIR}"
+
+      - name: dbt parse
+        run: dbt parse --project-dir "${DBT_PROJECT_DIR}" --profiles-dir "${DBT_PROFILES_DIR}" --target ci
+
+      - name: dbt compile
+        run: dbt compile --project-dir "${DBT_PROJECT_DIR}" --profiles-dir "${DBT_PROFILES_DIR}" --target ci
+
+      - name: Create Snowflake zero-copy CI clone
+        run: |
+          sed \
+            -e "s/{{CI_DATABASE}}/${CI_DATABASE}/g" \
+            -e "s/{{BASE_DATABASE}}/${BASE_DATABASE}/g" \
+            -e "s/{{CI_SCHEMA}}/${CI_SCHEMA}/g" \
+            .github/snowflake/create_ci_clone.sql > "${RUNNER_TEMP}/create_ci_clone.sql"
+
+          snow sql --temporary-connection -f "${RUNNER_TEMP}/create_ci_clone.sql"
+
+      - name: dbt build
+        run: dbt build --project-dir "${DBT_PROJECT_DIR}" --profiles-dir "${DBT_PROFILES_DIR}" --target ci
+
+      - name: Drop Snowflake zero-copy CI clone
+        if: always()
+        run: |
+          if [ -z "${CI_DATABASE:-}" ]; then
+            echo "CI_DATABASE was not set; nothing to clean up."
+            exit 0
+          fi
+
+          sed \
+            -e "s/{{CI_DATABASE}}/${CI_DATABASE}/g" \
+            .github/snowflake/drop_ci_clone.sql > "${RUNNER_TEMP}/drop_ci_clone.sql"
+
+          snow sql --temporary-connection -f "${RUNNER_TEMP}/drop_ci_clone.sql"

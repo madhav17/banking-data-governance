@@ -1,0 +1,27 @@
+name: avidia_banking_governance
+version: "1.0.0"
+config-version: 2
+
+profile: avidia_banking_governance
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+  - "logs"
+
+vars:
+  analytics_database: "{{ env_var('ANALYTICS_DATABASE', 'ANALYTICS') }}"
+  staging_schema: "{{ env_var('STAGING_SCHEMA', 'STAGING') }}"
+  marts_schema: "{{ env_var('MARTS_SCHEMA', 'MARTS') }}"
+
+models:
+  avidia_banking_governance:
+    +materialized: view
