@@ -5,6 +5,7 @@
     )
 }}
 
+-- noqa: disable=ST06
 WITH CUSTOMER AS (
     SELECT
         CUSTOMER_ID,

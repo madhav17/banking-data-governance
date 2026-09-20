@@ -3,8 +3,7 @@ version: 2
 sources:
   - name: staging
     description: Physical Snowflake STAGING tables populated outside dbt from RAW.BANKING.
-    database: "{{ var('analytics_database', 'ANALYTICS') }}"
-    schema: "{{ var('staging_schema', 'STAGING') }}"
+    schema: STAGING
     tables:
       - name: stg_customer
         identifier: STG_CUSTOMER
