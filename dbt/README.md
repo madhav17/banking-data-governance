@@ -1,105 +1,197 @@
 # Avidia Banking dbt Project
 
-This directory contains the dbt project for transforming the completed Snowflake
-`ANALYTICS.STAGING` layer into governed business marts in `ANALYTICS.MARTS`.
+This directory contains the dbt project used for the Avidia Bank STAGING -> MARTS transformation.
 
-## What Exists Now
+The physical Snowflake flow is:
 
-- `dbt_project.yml` defines the dbt project and model paths.
-- `profiles.yml` is for dbt Core and future GitHub Actions execution.
-- `dbt_projects_profiles.yml` is the Snowflake dbt Project profile template.
-- `models/marts/` contains the three business mart models and their source/model documentation.
-- `tests/` contains lightweight singular dbt tests that do not require extra packages.
-
-## Local Validation Commands
-
-Run from the repository root after installing `dbt-snowflake`:
-
-```sh
-dbt --project-dir dbt --profiles-dir dbt debug
-dbt --project-dir dbt --profiles-dir dbt parse
+```text
+ANALYTICS.STAGING
+  -> dbt
+  -> ANALYTICS.MARTS
 ```
 
-Optional SQLFluff check:
+The native Snowflake dbt Project deployment target is:
 
-```sh
-sqlfluff lint dbt/models
+```text
+ANALYTICS.DBT_PROJECTS.AVIDIA_BANK_DBT
 ```
 
-## Required Environment Variables
+## Project Contents
 
-Set these before running dbt locally or in CI:
+```text
+dbt/
+├── dbt_project.yml
+├── profiles.yml
+├── dbt_projects_profiles.yml
+├── dbt_projects_profiles_backup.yml
+├── packages.yml
+├── requirements-ci.txt
+├── .sqlfluff
+├── .sqlfluffignore
+├── models/
+│   └── marts/
+│       ├── _sources.yml
+│       ├── schema.yml
+│       ├── customer_360.sql
+│       ├── deposits_daily.sql
+│       ├── loan_portfolio.sql
+│       └── README.md
+├── tests/
+│   └── assert_deposits_daily_unique_account_date.sql
+├── analyses/
+├── macros/
+├── seeds/
+└── snapshots/
+```
+
+The `analyses`, `macros`, `seeds` and `snapshots` folders are intentionally present for future dbt growth, but the current take-home MART implementation does not depend on custom macros, seeds or snapshots.
+
+## MART Models
+
+Exactly three business MART models are implemented:
+
+| Model | Target object | Grain | Purpose |
+| --- | --- | --- | --- |
+| `customer_360` | `ANALYTICS.MARTS.CUSTOMER_360` | one row per `CUSTOMER_ID` | Customer profile with sensitive fields needed for masking/classification proof. |
+| `deposits_daily` | `ANALYTICS.MARTS.DEPOSITS_DAILY` | one row per `ACCOUNT_ID + BUSINESS_DATE` | Primary certified data product, DQ target and GL reconciliation anchor. |
+| `loan_portfolio` | `ANALYTICS.MARTS.LOAN_PORTFOLIO` | one row per `LOAN_ID` | Lending exposure and collateral/credit-grade data product. |
+
+The MART source tables are declared in `models/marts/_sources.yml` and point to existing tables in `ANALYTICS.STAGING`. dbt does not create STAGING objects.
+
+## Materialization Strategy
+
+All three MART models use:
+
+```sql
+materialized = 'incremental'
+incremental_strategy = 'insert_overwrite'
+```
+
+The model queries return the complete desired dataset on each run. There are no `is_incremental()` date filters, manual truncates or manual deletes. This gives full-refresh-like business behavior while preserving the Snowflake relation object for future tags, policies and governance evidence.
+
+## Tests And Documentation
+
+`models/marts/schema.yml` documents the models, important columns and basic engineering tests:
+
+- `CUSTOMER_360.CUSTOMER_ID` is not null and unique.
+- `DEPOSITS_DAILY.ACCOUNT_ID` and `BUSINESS_DATE` are not null.
+- `LOAN_PORTFOLIO.LOAN_ID` is not null and unique.
+
+`tests/assert_deposits_daily_unique_account_date.sql` checks the composite grain of `DEPOSITS_DAILY` without requiring an external package such as `dbt-utils`.
+
+## Local Environment Variables
+
+The dbt profiles use environment variables. Do not commit credentials.
+
+Required for local dbt Core execution:
 
 ```sh
 export DBT_SNOWFLAKE_ACCOUNT="<account_identifier>"
-export DBT_SNOWFLAKE_USER="<pipeline_or_developer_user>"
+export DBT_SNOWFLAKE_USER="<user_or_service_user>"
 export DBT_SNOWFLAKE_PRIVATE_KEY_PATH="<path_to_private_key_file>"
-export DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE="<optional_key_passphrase>"
-export DBT_SNOWFLAKE_ROLE="<PIPELINE_ROLE>"
-export DBT_SNOWFLAKE_WAREHOUSE="<WAREHOUSE>"
-export DBT_SNOWFLAKE_DATABASE="<ANALYTICS_DATABASE>"
+export DBT_SNOWFLAKE_ROLE="<role>"
+export DBT_SNOWFLAKE_WAREHOUSE="<warehouse>"
+export DBT_SNOWFLAKE_DATABASE="ANALYTICS"
 export DBT_TARGET="dev"
 ```
 
-Optional schema overrides:
+Optional:
 
 ```sh
+export DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE="<optional_passphrase>"
 export DBT_DEV_SCHEMA="MARTS_DEV"
 export DBT_CI_SCHEMA="MARTS_CI"
 export DBT_PROD_SCHEMA="MARTS"
 export DBT_THREADS="4"
-```
-
-Conceptual future source values:
-
-```sh
-export ANALYTICS_DATABASE="<ANALYTICS_DATABASE>"
+export ANALYTICS_DATABASE="ANALYTICS"
 export STAGING_SCHEMA="STAGING"
 export MARTS_SCHEMA="MARTS"
 ```
 
-Do not commit real credentials.
+## Local Validation
 
-## GitHub Actions CI
+From the repository root:
 
-The CI workflow lives at `.github/workflows/dbt_ci.yml`.
+```sh
+dbt --project-dir dbt --profiles-dir dbt deps
+dbt --project-dir dbt --profiles-dir dbt debug
+dbt --project-dir dbt --profiles-dir dbt parse
+dbt --project-dir dbt --profiles-dir dbt compile --target dev
+dbt --project-dir dbt --profiles-dir dbt build --target dev
+```
 
-It is intentionally manual-only for now:
+SQLFluff:
 
-- `workflow_dispatch`
-- no production deployment
-- no Snowflake Tasks
-- no dbt Project deployment
+```sh
+cd dbt
+sqlfluff lint .
+```
 
-The workflow validates dbt against a temporary Snowflake zero-copy clone:
+## GitHub Actions dbt CI
 
-1. checkout
-2. install Python, dbt, SQLFluff, and Snowflake CLI
-3. write the private key from GitHub Secrets to a temporary runner file
-4. create a unique CI database name from `SNOWFLAKE_CI_DB_PREFIX` and `GITHUB_RUN_ID`
-5. run SQLFluff
-6. run `dbt deps`
-7. run `dbt parse`
-8. run `dbt compile --target ci`
-9. create a zero-copy clone of `SNOWFLAKE_BASE_DATABASE`
-10. run `dbt build --target ci`
-11. drop the CI clone with an `always()` cleanup step
+The CI workflow is:
 
-### GitHub Secrets
+```text
+.github/workflows/dbt_ci.yml
+```
 
-Store sensitive values as repository or environment secrets:
+It is manual-only:
+
+```yaml
+on:
+  workflow_dispatch:
+```
+
+The workflow:
+
+1. checks out the repository;
+2. installs dbt, SQLFluff and Snowflake CLI;
+3. writes the service-user private key to a temporary runner file;
+4. validates SQLFluff;
+5. runs `dbt deps`, `dbt parse` and `dbt compile --target ci`;
+6. creates a unique Snowflake zero-copy clone database;
+7. runs `dbt build --target ci` against the clone;
+8. drops the clone in an `always()` cleanup step.
+
+The workflow does not deploy to production and does not execute the native Snowflake dbt Project.
+
+## GitHub Actions dbt Deploy
+
+The deployment workflow is:
+
+```text
+.github/workflows/dbt_deploy.yml
+```
+
+It is also manual-only. It deploys the current selected branch as:
+
+```text
+ANALYTICS.DBT_PROJECTS.AVIDIA_BANK_DBT
+```
+
+The workflow uses:
+
+```text
+role:      SVC_PIPELINE_ROLE
+warehouse: WH_GOVERNANCE_XS
+database:  ANALYTICS
+schema:    DBT_PROJECTS
+target:    prod
+```
+
+It runs `snow dbt deploy` with `--auto-compile`, then verifies the deployed project with `snow dbt describe`. It does not run `EXECUTE DBT PROJECT` and does not create a Snowflake Task.
+
+## Required GitHub Secrets And Variables
+
+Secrets:
 
 ```text
 SNOWFLAKE_USER
 SNOWFLAKE_PRIVATE_KEY
-SNOWFLAKE_PRIVATE_KEY_PASSPHRASE
+SNOWFLAKE_PRIVATE_KEY_PASSPHRASE   # optional
 ```
 
-`SNOWFLAKE_PRIVATE_KEY_PASSPHRASE` may be empty if the private key is not encrypted.
-
-### GitHub Variables
-
-Store non-secret CI configuration as repository or environment variables:
+Variables used by CI:
 
 ```text
 SNOWFLAKE_ACCOUNT
@@ -111,161 +203,15 @@ DBT_CI_SCHEMA
 DBT_THREADS
 ```
 
-Use uppercase Snowflake identifiers for:
+## Native Snowflake dbt Project Commands
 
-```text
-SNOWFLAKE_BASE_DATABASE
-SNOWFLAKE_CI_DB_PREFIX
-DBT_CI_SCHEMA
-```
-
-### Snowflake Service Role Requirements
-
-The workflow must run with a service user such as `SVC_PIPELINE`, using key-pair authentication.
-Do not use `ACCOUNTADMIN`.
-
-The service role needs:
-
-```sql
-GRANT USAGE ON WAREHOUSE <WAREHOUSE> TO ROLE <PIPELINE_ROLE>;
-GRANT USAGE ON DATABASE <ANALYTICS_DATABASE> TO ROLE <PIPELINE_ROLE>;
-GRANT CREATE DATABASE ON ACCOUNT TO ROLE <PIPELINE_ROLE>;
-```
-
-It also needs sufficient privileges to clone/read objects from the base analytics database and
-to create dbt objects in the cloned CI database/schema. The CI clone is owned by the pipeline role,
-so the same role can drop it during cleanup.
-
-## Native Snowflake dbt Project Deployment
-
-This section deploys the dbt code to a native Snowflake DBT PROJECT object. It does not schedule the project or automatically update MARTS data.
-
-The deployed object location is:
-
-```text
-ANALYTICS.DBT_PROJECTS.AVIDIA_BANK_DBT
-```
-
-The dbt production target writes models to:
-
-```text
-ANALYTICS.MARTS
-```
-
-`ANALYTICS.STAGING` remains the source layer, and `ANALYTICS.DBT_PROJECTS` stores Snowflake DBT PROJECT objects only.
-
-### GitHub Actions Deployment
-
-The deployment workflow lives at:
-
-```text
-.github/workflows/dbt_deploy.yml
-```
-
-It is manual-only:
-
-```yaml
-on:
-  workflow_dispatch:
-```
-
-The workflow deploys the current selected branch to:
-
-```text
-ANALYTICS.DBT_PROJECTS.AVIDIA_BANK_DBT
-```
-
-It uses Snowflake key-pair authentication with the same service user pattern as CI. It does not use `ACCOUNTADMIN`, does not run `EXECUTE DBT PROJECT`, and does not create Snowflake Tasks.
-
-Required GitHub repository variable:
-
-```text
-SNOWFLAKE_ACCOUNT
-```
-
-Required GitHub repository secrets:
-
-```text
-SNOWFLAKE_USER
-SNOWFLAKE_PRIVATE_KEY
-```
-
-Optional GitHub repository secret:
-
-```text
-SNOWFLAKE_PRIVATE_KEY_PASSPHRASE
-```
-
-To deploy from GitHub:
-
-1. Go to the repository in GitHub.
-2. Open **Actions**.
-3. Select **dbt Deploy**.
-4. Click **Run workflow**.
-5. Select the branch to deploy.
-6. Click **Run workflow**.
-
-Expected result: the workflow installs Snowflake CLI, verifies the Snowflake connection, runs `snow dbt deploy`, and verifies the deployed DBT PROJECT object with `snow dbt describe`.
-
-### Snowflake CLI Prerequisite
-
-Install Snowflake CLI and verify it is available:
+Verify connection:
 
 ```sh
-snow --version
+snow connection test -c avidia_pipeline
 ```
 
-Snowflake CLI must support `snow dbt` commands. Snowflake documents `snow dbt deploy` as the command that uploads local dbt project files and creates or updates a Snowflake DBT PROJECT object.
-
-### Local Connection
-
-Create a local Snowflake CLI connection named `avidia_pipeline` for the service user.
-The connection should conceptually use:
-
-```text
-connection name: avida_pipeline
-user: SVC_PIPELINE
-authenticator: SNOWFLAKE_JWT
-role: SVC_PIPELINE_ROLE
-warehouse: WH_GOVERNANCE_XS
-database: ANALYTICS
-schema: DBT_PROJECTS
-private key file: ~/.snowflake/keys/svc_pipeline_key.p8
-```
-
-Add it interactively:
-
-```sh
-snow connection add
-```
-
-When prompted, provide the Snowflake account identifier locally. Never copy the private key, passphrase, or generated Snowflake CLI config into this repository.
-
-Verify the connection:
-
-```sh
-snow connection test -c avida_pipeline
-```
-
-Expected result: `Status` is `OK`, with user `SVC_PIPELINE`, role `SVC_PIPELINE_ROLE`, warehouse `WH_GOVERNANCE_XS`, database `ANALYTICS`, and schema `DBT_PROJECTS`.
-
-Confirm the active Snowflake context:
-
-```sh
-snow sql \
-  -c avida_pipeline \
-  --role SVC_PIPELINE_ROLE \
-  --warehouse WH_GOVERNANCE_XS \
-  --database ANALYTICS \
-  --schema DBT_PROJECTS \
-  -q "SELECT CURRENT_USER(), CURRENT_ROLE(), CURRENT_DATABASE(), CURRENT_SCHEMA(), CURRENT_WAREHOUSE();"
-```
-
-Expected result: current user is `SVC_PIPELINE`, current role is `SVC_PIPELINE_ROLE`, database is `ANALYTICS`, schema is `DBT_PROJECTS`, and warehouse is `WH_GOVERNANCE_XS`.
-
-### Deploy
-
-Run from the repository root:
+Deploy:
 
 ```sh
 snow dbt deploy AVIDIA_BANK_DBT \
@@ -273,119 +219,24 @@ snow dbt deploy AVIDIA_BANK_DBT \
   --profiles-dir dbt \
   --default-target prod \
   --auto-compile \
-  -c avida_pipeline \
+  -c avidia_pipeline \
   --database ANALYTICS \
   --schema DBT_PROJECTS \
   --role SVC_PIPELINE_ROLE \
   --warehouse WH_GOVERNANCE_XS
 ```
 
-Do not use `--force` for normal deployment because it recreates the DBT PROJECT object and can remove run history.
-
-Expected result: Snowflake creates or updates `ANALYTICS.DBT_PROJECTS.AVIDIA_BANK_DBT` and compiles the project during deployment. This does not run MART transformations.
-
-### Verify Deployment
-
-List DBT PROJECT objects:
+Verify:
 
 ```sh
-snow dbt list \
-  -c avida_pipeline \
-  --database ANALYTICS \
-  --schema DBT_PROJECTS \
-  --role SVC_PIPELINE_ROLE \
-  --warehouse WH_GOVERNANCE_XS
+snow dbt list -c avidia_pipeline --database ANALYTICS --schema DBT_PROJECTS
+snow dbt describe AVIDIA_BANK_DBT -c avidia_pipeline --database ANALYTICS --schema DBT_PROJECTS
 ```
 
-Expected result: `AVIDIA_BANK_DBT` appears in the list.
-
-Describe the deployed project:
-
-```sh
-snow dbt describe AVIDIA_BANK_DBT \
-  -c avida_pipeline \
-  --database ANALYTICS \
-  --schema DBT_PROJECTS \
-  --role SVC_PIPELINE_ROLE \
-  --warehouse WH_GOVERNANCE_XS
-```
-
-Expected result: Snowflake returns details for `AVIDIA_BANK_DBT`, including owner, dbt version, and deployment metadata.
-
-Verify from SQL:
-
-```sh
-snow sql \
-  -c avida_pipeline \
-  --role SVC_PIPELINE_ROLE \
-  --warehouse WH_GOVERNANCE_XS \
-  --database ANALYTICS \
-  --schema DBT_PROJECTS \
-  -q "SHOW DBT PROJECTS IN SCHEMA ANALYTICS.DBT_PROJECTS;"
-```
-
-Expected result: `AVIDIA_BANK_DBT` appears in `ANALYTICS.DBT_PROJECTS`.
-
-### Run After Deployment
-
-Deployment only pushes dbt code into Snowflake. To run the deployed project manually from Snowflake, execute:
+Execute later, when you intentionally want Snowflake to run the deployed project:
 
 ```sql
-EXECUTE DBT PROJECT ANALYTICS.DBT_PROJECTS.AVIDIA_BANK_DBT
-  ARGS = 'build --target prod';
+EXECUTE DBT PROJECT ANALYTICS.DBT_PROJECTS.AVIDIA_BANK_DBT;
 ```
 
-Expected result: Snowflake runs dbt using the deployed project object. Models build into the configured production target:
-
-```text
-ANALYTICS.MARTS
-```
-
-For the current skeleton, there may be little or nothing to create until real MART models are added. Later models such as `CUSTOMER_360` or `DEPOSITS_DAILY` should be added under `dbt/models/marts/` before this command becomes the MART refresh path.
-
-Validate the run result in Snowflake query history and with:
-
-```sql
-SHOW TABLES IN SCHEMA ANALYTICS.MARTS;
-SHOW VIEWS IN SCHEMA ANALYTICS.MARTS;
-```
-
-### Native Profile
-
-`dbt_projects_profiles.yml` is used by Snowflake dbt Projects. It intentionally contains only the native execution target:
-
-```text
-profile: avidia_banking_governance
-target: prod
-database: ANALYTICS
-schema: MARTS
-warehouse: WH_GOVERNANCE_XS
-role: SVC_PIPELINE_ROLE
-```
-
-It does not contain account, user, password, private key, passphrase, or GitHub secret references. Authentication belongs to Snowflake CLI and the `avidia_pipeline` connection.
-
-### Dependencies
-
-`packages.yml` currently contains:
-
-```yaml
-packages: []
-```
-
-There are no external dbt packages for Snowflake to download during deployment. Keep it this way until a real transformation needs a package.
-
-### Troubleshooting
-
-If `snow connection test -c avida_pipeline` fails, fix the local Snowflake CLI connection first. Check account, user, private key path, role, warehouse, database, and schema.
-
-If deployment fails with a privilege error, confirm `SVC_PIPELINE_ROLE` has `USAGE` on `ANALYTICS`, `USAGE` on `ANALYTICS.DBT_PROJECTS`, `CREATE DBT PROJECT` on `ANALYTICS.DBT_PROJECTS`, and `USAGE` on `WH_GOVERNANCE_XS`.
-
-If deployment fails during compilation, run local dbt checks again:
-
-```sh
-dbt --project-dir dbt --profiles-dir dbt parse
-dbt --project-dir dbt --profiles-dir dbt compile --target prod
-```
-
-If the DBT PROJECT is created in the wrong schema, confirm the deploy command includes `--database ANALYTICS --schema DBT_PROJECTS`. The MART target schema belongs in `dbt_projects_profiles.yml`; the DBT PROJECT object schema belongs in the Snowflake CLI deploy command.
+Execution is intentionally separate from deployment so CI/CD can validate and publish code without unexpectedly refreshing production MART data.

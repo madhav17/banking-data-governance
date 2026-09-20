@@ -1,89 +1,133 @@
 # Avidia Data Catalog
 
-One-page Streamlit in Snowflake data dictionary for the Avidia Bank governance
-take-home project.
+This directory contains the existing one-page Streamlit in Snowflake application for the Avidia Bank governance catalog.
 
-The app reads live metadata from:
+The deployed Streamlit object is:
+
+```text
+GOVERNANCE.CATALOG.AVIDIA_DATA_CATALOG
+```
+
+The application reads live Snowflake governance metadata through:
 
 ```text
 GOVERNANCE.CATALOG.V_STREAMLIT_CATALOG
+GOVERNANCE.CATALOG.CATALOG_SCORECARD
 ```
 
-It no longer uses hardcoded catalog data for the production Snowflake
-deployment.
+It no longer uses hardcoded catalog rows for the Snowflake deployment.
 
 ## Purpose
 
-The catalog lets reviewers search governed MART objects and inspect the Block 5
-data-dictionary fields:
+The app is the Block 5 data-dictionary experience. It lets a reviewer search and inspect governed MART objects with the fields required by the specification:
 
-- owner
-- steward
-- certification
-- CDE flag
-- confirmed classification
-- descriptions
-- upstream sources
-- last refresh
-- latest quality result
-- usage since creation
+- owner;
+- steward;
+- certification;
+- CDE flag;
+- confirmed classification;
+- description;
+- upstream sources;
+- last refresh;
+- latest quality result;
+- usage since creation;
+- query count;
+- distinct roles.
 
-The app is intentionally one page and read-only. It does not run DQ, lineage,
-classification, certification, Cortex, or metadata-edit workflows.
+It also exposes the seven-dimension governance scorecard in a simple `Governance Scorecard` tab.
+
+The app is intentionally read-only. It does not:
+
+- run DQ;
+- execute lineage;
+- call `CERTIFY`;
+- approve/reject classification;
+- generate Cortex descriptions;
+- expose sensitive banking row data.
+
+## Directory Structure
+
+```text
+catalog_app/
+├── streamlit_app.py
+├── snowflake.yml
+├── environment.yml
+├── components/
+│   ├── header.py
+│   ├── object_summary.py
+│   ├── column_table.py
+│   └── status_cards.py
+├── services/
+│   ├── catalog_service.py
+│   └── mock_catalog_service.py
+├── sql/
+│   ├── 00_permissions.sql
+│   ├── 01_create_catalog_view.sql
+│   ├── 02_validate_catalog_view.sql
+│   └── execution_order.txt
+└── README.md
+```
+
+`mock_catalog_service.py` remains as a development fallback pattern, but the production app reads Snowflake through `services/catalog_service.py`.
 
 ## Architecture
 
 ```text
 Existing governance metadata
   -> GOVERNANCE.CATALOG.V_STREAMLIT_CATALOG
-  -> catalog_app/services/SnowflakeCatalogService
+  -> GOVERNANCE.CATALOG.CATALOG_SCORECARD
+  -> SnowflakeCatalogService
   -> Streamlit UI
 ```
 
-The Streamlit code does not contain the governance joins. Those joins live in
-`sql/01_create_catalog_view.sql` so the UI stays easy to explain.
+Large governance joins are kept in Snowflake SQL views rather than embedded in Python. This keeps the UI small and easy to explain.
 
-## Source Mapping
+## Existing Deployment Configuration
 
-| Display field | Source |
+`snowflake.yml` defines one Streamlit entity:
+
+```text
+entity id:       avida_data_catalog
+object:          GOVERNANCE.CATALOG.AVIDIA_DATA_CATALOG
+stage:           AVIDIA_DATA_CATALOG_STAGE
+query warehouse: WH_GOVERNANCE_XS
+main file:       streamlit_app.py
+artifacts:       streamlit_app.py, environment.yml, components/, services/
+```
+
+The deployment/runtime role is:
+
+```text
+CATALOG_APP_ROLE
+```
+
+The app uses Snowflake warehouse runtime and does not require Snowpark Container Services or a compute pool.
+
+## Field Sources
+
+| App field | Source |
 | --- | --- |
-| object and column inventory | `ANALYTICS.INFORMATION_SCHEMA.TABLES/COLUMNS` for `ANALYTICS.MARTS` |
-| description | Snowflake object and column comments |
-| owner | `GOVERNANCE.TAGS.DATA_OWNER` effective tag |
-| steward | `GOVERNANCE.TAGS.DATA_STEWARD` effective tag |
-| certification | `GOVERNANCE.TAGS.CERTIFICATION` effective tag |
-| CDE flag | `GOVERNANCE.TAGS.CDE` effective column tag |
-| classification | confirmed `GOVERNANCE.TAGS.CLASSIFICATION` column tag |
+| database, schema, object and column | `ANALYTICS.INFORMATION_SCHEMA.TABLES/COLUMNS` for `ANALYTICS.MARTS` |
+| object and column descriptions | Snowflake comments |
+| owner | effective `GOVERNANCE.TAGS.DATA_OWNER` tag |
+| steward | effective `GOVERNANCE.TAGS.DATA_STEWARD` tag |
+| certification | effective `GOVERNANCE.TAGS.CERTIFICATION` tag |
+| CDE flag | effective `GOVERNANCE.TAGS.CDE` column tag |
+| classification | confirmed/effective `GOVERNANCE.TAGS.CLASSIFICATION` column tag |
 | upstream sources | latest `GOVERNANCE.CATALOG.LINEAGE_EDGE` snapshot |
 | last refresh | `ANALYTICS.INFORMATION_SCHEMA.TABLES.LAST_ALTERED` |
 | quality result | latest `GOVERNANCE.DQ.DQ_RESULT` run |
 | query count | `SNOWFLAKE.ACCOUNT_USAGE.ACCESS_HISTORY` |
 | distinct roles | `SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY` joined by query ID |
+| scorecard | `GOVERNANCE.CATALOG.CATALOG_SCORECARD` |
 
-`LAST_REFRESH` is interpreted as the latest Snowflake object alteration time
-available from `INFORMATION_SCHEMA`, not a business SLA timestamp.
+`LAST_REFRESH` is interpreted as Snowflake object last-altered time for the MART object. It is not a business SLA timestamp.
 
-`ACCOUNT_USAGE` data can lag, so usage counts are evidence for review rather
-than real-time telemetry.
-
-## Existing Deployment Configuration
-
-The existing Snowflake Streamlit object is preserved:
-
-```text
-entity id:  avida_data_catalog
-object:     GOVERNANCE.CATALOG.AVIDIA_DATA_CATALOG
-role:       CATALOG_APP_ROLE
-warehouse:  WH_GOVERNANCE_XS
-stage:      AVIDIA_DATA_CATALOG_STAGE
-runtime:    warehouse runtime
-```
-
-The project definition remains in `snowflake.yml`.
+`ACCOUNT_USAGE` can lag, so usage counts are not real-time.
 
 ## SQL Setup Order
 
-From the repository root:
+Run from the repository root:
 
 ```sh
 snow sql -c avidia -f catalog_app/sql/00_permissions.sql
@@ -95,16 +139,23 @@ snow sql -c avidia -f scorecard/01_validate_scorecard.sql
 
 Expected result:
 
-- `V_STREAMLIT_CATALOG` exists
-- it returns MART column rows
-- `ANALYTICS.MARTS.DEPOSITS_DAILY` is present
-- certification, DQ, lineage, CDE, classification and usage evidence are visible
-  when those prior blocks have been executed
-- `CATALOG_SCORECARD` returns the seven governance dimensions:
-  `OWNED`, `DEFINED`, `TRACEABLE`, `TRUSTED`, `SECURE`, `ADOPTED`,
-  `RECONCILED`
+- `GOVERNANCE.CATALOG.V_STREAMLIT_CATALOG` exists and returns MART column rows;
+- `ANALYTICS.MARTS.DEPOSITS_DAILY` appears in the catalog;
+- owner, steward, certification, CDE, classification, lineage, DQ and usage fields populate when prior blocks have been executed;
+- `GOVERNANCE.CATALOG.CATALOG_SCORECARD` returns seven rows.
 
-## Deploy
+## Local UI Check
+
+For a local syntax/UI check:
+
+```sh
+cd catalog_app
+streamlit run streamlit_app.py
+```
+
+Local rendering still requires the service layer to handle the environment you are using. The intended deployment target is Streamlit in Snowflake with an active Snowflake session.
+
+## Deploy To Snowflake
 
 From the repository root:
 
@@ -115,14 +166,17 @@ snow streamlit deploy avida_data_catalog \
   -c avidia
 ```
 
-Use the existing connection configured for the Avidia project. If your local
-connection is named `avida_pipeline`, replace `-c avidia` with
-`-c avida_pipeline`.
+If your local service-user connection is named `avida_pipeline`, use:
 
-The CI/CD workflow should also deploy the same existing entity and should not
-use `--open`.
+```sh
+snow streamlit deploy avida_data_catalog \
+  --replace \
+  -c avida_pipeline
+```
 
-## Open the App
+The GitHub workflow `.github/workflows/streamlit_ci_cd.yml` deploys the same entity manually and does not use `--open`.
+
+## Open The App
 
 Use one of:
 
@@ -146,36 +200,34 @@ Snowsight -> Projects -> Streamlit -> AVIDIA_DATA_CATALOG
 1. Open `Avidia Data Catalog`.
 2. Search for `deposits`.
 3. Select `ANALYTICS.MARTS.DEPOSITS_DAILY`.
-4. Point out owner, steward, certification, quality result and usage metrics.
+4. Show owner, steward, certification, quality result, usage count and distinct-role count.
 5. Show the column table with CDE and classification values.
 6. Show upstream sources from the latest lineage snapshot.
-7. Open the `Governance Scorecard` tab and show the seven scorecard rows.
+7. Open `Governance Scorecard`.
+8. Explain each of the seven dimensions and why `DEFINED` may show a gap if not all MART columns have comments.
 
 ## Troubleshooting
 
 Insufficient privileges:
-Run `catalog_app/sql/00_permissions.sql` with an admin/setup connection, then
-rerun the view creation script.
+Run `catalog_app/sql/00_permissions.sql` with the appropriate setup/admin connection, then rerun the catalog view and scorecard scripts.
 
 Missing catalog view:
-Run `catalog_app/sql/01_create_catalog_view.sql`, then validate with
-`catalog_app/sql/02_validate_catalog_view.sql`.
+Run `catalog_app/sql/01_create_catalog_view.sql`, then validate with `catalog_app/sql/02_validate_catalog_view.sql`.
 
-Missing Python module:
-Confirm `environment.yml` includes `streamlit` and
-`snowflake-snowpark-python`, then redeploy.
+Missing scorecard:
+Run `scorecard/00_create_catalog_scorecard_view.sql`, then validate with `scorecard/01_validate_scorecard.sql`.
 
-Missing `components` or `services` imports:
-Confirm `snowflake.yml` still includes `components/` and `services/` under
-`artifacts`, then redeploy with `--replace`.
+Missing imports:
+Confirm `snowflake.yml` includes `components/` and `services/` under `artifacts`, then redeploy with `--replace`.
+
+Dependency errors:
+Confirm `environment.yml` contains only the required Streamlit/Snowpark packages for Streamlit in Snowflake.
 
 Usage counts are zero:
-`ACCOUNT_USAGE.ACCESS_HISTORY` and `QUERY_HISTORY` can lag. Also confirm the
-view owner role has the governance visibility granted in the lineage block.
+`ACCOUNT_USAGE.ACCESS_HISTORY` and `QUERY_HISTORY` can lag. Also confirm the view owner role has Account Usage visibility from the lineage setup.
 
 Quality result is `NO_DQ`:
-Run the DQ block for the target object and rerun the catalog validation query.
+Run the DQ block and confirm `GOVERNANCE.DQ.DQ_RESULT` has a latest run for the selected object.
 
-Upstream sources are `NOT AVAILABLE`:
-Run the lineage snapshot task/script for the target object. Current formal
-lineage evidence is focused on `ANALYTICS.MARTS.DEPOSITS_DAILY`.
+Upstream sources are unavailable:
+Run the lineage snapshot scripts for `DEPOSITS_DAILY`. Formal lineage evidence is focused on that certified mart.

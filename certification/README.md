@@ -1,72 +1,153 @@
 # Block 5 - Certification
 
-`GOVERNANCE.EVIDENCE.CERTIFY(object)` is the minimal certification control for
-the take-home. It reuses evidence from the previous blocks rather than creating a
-new rule framework.
+This block implements the minimal `CERTIFY(object)` functionality required by the take-home.
 
-## Candidate
+The procedure reuses evidence already produced by metadata, classification, protection and DQ. It does not rebuild those systems and it does not introduce a certification rules framework.
 
-`ANALYTICS.MARTS.DEPOSITS_DAILY` is the primary certification candidate because
-it is the deposit mart with completed DQ evidence and GL reconciliation.
+## Objects Created
 
-## Gates
-
-CERTIFY evaluates exactly seven gates:
-
-1. `DATA_OWNER` metadata exists.
-2. `DATA_STEWARD` metadata exists.
-3. Native object and column description coverage is 100%.
-4. Relevant registered CDEs are tagged with `GOVERNANCE.TAGS.CDE`.
-5. Steward-confirmed classification tags are present where required.
-6. Sensitive classified columns have active policy coverage.
-7. The latest DQ run has exactly six dimensions and all six checks pass.
-
-Lineage is intentionally not a certification gate. Block 4 proves traceability,
-but the specification lists the seven gates above for `CERTIFY(object)`.
-
-## Evidence Sources
-
-- Ownership/stewardship: native tags from `GOVERNANCE.TAGS.DATA_OWNER` and
-  `GOVERNANCE.TAGS.DATA_STEWARD`.
-- Descriptions: `ANALYTICS.INFORMATION_SCHEMA.TABLES` and
-  `ANALYTICS.INFORMATION_SCHEMA.COLUMNS`.
-- CDEs: `GOVERNANCE.CATALOG.CDE_REGISTRY` plus native `CDE` column tags.
-- Classification: steward-approved `GOVERNANCE.CATALOG.TAG_ASSIGNMENT` rows
-  where `SOURCE_TYPE = 'CLASSIFICATION_REVIEW'`.
-- Policy coverage: `ANALYTICS.INFORMATION_SCHEMA.POLICY_REFERENCES`.
-- DQ: latest `GOVERNANCE.DQ.DQ_RESULT` run for the object.
-
-## Behavior
-
-If every gate passes, CERTIFY applies:
-
-```sql
-GOVERNANCE.TAGS.CERTIFICATION = 'CERTIFIED'
+```text
+GOVERNANCE.EVIDENCE.CERTIFICATION_LOG
+GOVERNANCE.EVIDENCE.CERTIFY(OBJECT_FQN VARCHAR)
 ```
 
-to the target object and writes one `CERTIFIED` row to
-`GOVERNANCE.EVIDENCE.CERTIFICATION_LOG`.
+The existing tag used for successful certification is:
 
-If any gate fails, CERTIFY does not modify the certification tag. It writes one
-`REFUSED` row with failure reasons and returns the same reasons to the caller.
-Refusal is a business outcome, not a technical exception.
+```text
+GOVERNANCE.TAGS.CERTIFICATION
+```
 
-## Demonstration
+No duplicate certification tag or certification registry table is created.
 
-`03_demonstrate_certification.sql` prepares missing current-state MART evidence
-for `DEPOSITS_DAILY` by applying native comments and CDE tags, then calls
-`CERTIFY`.
+## Primary Candidate
 
-It then calls `CERTIFY` for `ANALYTICS.MARTS.CUSTOMER_360`. That object
-naturally lacks DQ evidence, so it demonstrates a refused outcome without
-damaging the successful certified mart.
+The success candidate is:
+
+```text
+ANALYTICS.MARTS.DEPOSITS_DAILY
+```
+
+It is the primary certified data product because it has:
+
+- owner/steward metadata;
+- MART comments and column descriptions;
+- CDE tags;
+- confirmed classification where required;
+- policy coverage for sensitive columns;
+- six DQ checks;
+- GL reconciliation evidence.
+
+## Seven Gates
+
+`CERTIFY(object)` evaluates exactly these seven gates:
+
+| Gate | Requirement | Evidence source |
+| --- | --- | --- |
+| Owner | target object has `DATA_OWNER` metadata | effective `GOVERNANCE.TAGS.DATA_OWNER` tag |
+| Steward | target object has `DATA_STEWARD` metadata | effective `GOVERNANCE.TAGS.DATA_STEWARD` tag |
+| Description | object and all exposed columns have descriptions | Snowflake `INFORMATION_SCHEMA` comments |
+| CDE | relevant registered CDEs are tagged | `GOVERNANCE.CATALOG.CDE_REGISTRY` plus `GOVERNANCE.TAGS.CDE` |
+| Classification | required sensitive MART columns have confirmed classification | approved classification review / desired tag state |
+| Policy | required sensitive columns have masking policy coverage | existing protection policy-reference evidence |
+| DQ | latest run has exactly six dimensions and all six pass | `GOVERNANCE.DQ.DQ_RESULT` |
+
+Lineage is intentionally not a certification gate. Lineage is implemented separately in Block 4 and is visible in the catalog/scorecard, but the certification procedure follows the explicit gate list above.
+
+## PASS Behavior
+
+When all gates pass, the procedure:
+
+1. applies `GOVERNANCE.TAGS.CERTIFICATION = 'CERTIFIED'` to the target object;
+2. inserts one `CERTIFIED` row into `GOVERNANCE.EVIDENCE.CERTIFICATION_LOG`;
+3. returns a structured VARIANT response containing each gate status.
+
+Example call:
+
+```sql
+CALL GOVERNANCE.EVIDENCE.CERTIFY('ANALYTICS.MARTS.DEPOSITS_DAILY');
+```
+
+Expected outcome:
+
+```text
+CERTIFIED
+```
+
+## REFUSED Behavior
+
+When any gate fails, the procedure:
+
+1. does not set `CERTIFICATION = CERTIFIED`;
+2. inserts one `REFUSED` row into `GOVERNANCE.EVIDENCE.CERTIFICATION_LOG`;
+3. returns all failure reasons to the caller.
+
+Refusal is a valid business outcome, not a technical error.
+
+The current refusal demonstration uses:
+
+```text
+ANALYTICS.MARTS.CUSTOMER_360
+```
+
+This object naturally lacks the complete six-dimension DQ evidence required for certification.
+
+## Files
+
+```text
+certification/
+├── 00_permissions.sql
+├── 01_create_certification_log.sql
+├── 02_create_certify_procedure.sql
+├── 03_demonstrate_certification.sql
+├── 04_validate_certification.sql
+├── 05_validations.sql
+├── execution_order.txt
+└── README.md
+```
+
+`05_validations.sql` is an additional validation helper. The main execution order uses files `00` through `04`.
 
 ## Execution Order
 
-```bash
+Run from the repository root:
+
+```sh
 snow sql -c avidia -f certification/00_permissions.sql
 snow sql -c avidia -f certification/01_create_certification_log.sql
 snow sql -c avidia -f certification/02_create_certify_procedure.sql
 snow sql -c avidia -f certification/03_demonstrate_certification.sql
 snow sql -c avidia -f certification/04_validate_certification.sql
 ```
+
+## Demonstration Script
+
+`03_demonstrate_certification.sql` demonstrates both required outcomes:
+
+1. certifies `ANALYTICS.MARTS.DEPOSITS_DAILY`;
+2. refuses `ANALYTICS.MARTS.CUSTOMER_360`.
+
+The script does not damage or modify `DEPOSITS_DAILY` to force a refusal.
+
+## Validation Evidence
+
+`04_validate_certification.sql` proves:
+
+- the procedure exists;
+- the log table exists;
+- `DEPOSITS_DAILY` has owner and steward metadata;
+- description coverage is complete;
+- CDE evidence is present;
+- confirmed classification evidence exists where required;
+- policy gap count is zero;
+- the latest DQ run has six dimensions and all pass;
+- `DEPOSITS_DAILY` has `CERTIFICATION = CERTIFIED`;
+- at least one refused outcome exists;
+- refused outcomes include non-empty failure reasons.
+
+## Downstream Consumers
+
+Certification evidence is reused by:
+
+- `GOVERNANCE.CATALOG.V_STREAMLIT_CATALOG`;
+- `GOVERNANCE.CATALOG.CATALOG_SCORECARD`;
+- the Streamlit catalog object details and scorecard tab.
