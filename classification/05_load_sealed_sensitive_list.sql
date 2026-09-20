@@ -1,0 +1,64 @@
+/*==============================================================================
+ AVIDIA BANK - LOAD SEALED SENSITIVE LIST
+
+ Purpose:
+   Load data/sealed_sensitive_columns.json into
+   GOVERNANCE.CATALOG.SEALED_SENSITIVE_COLUMN.
+
+ Required one-time upload before running this file:
+
+   snow stage copy data/sealed_sensitive_columns.json \
+     @GOVERNANCE.CATALOG.CLASSIFICATION_FILE_STAGE \
+     --overwrite \
+     -c avidia \
+     --role DATA_GOVERNANCE_ADMIN \
+     --warehouse WH_GOVERNANCE_XS
+
+ Notes:
+   - The sealed JSON file is not changed by this process.
+   - RAW names are normalized to STAGING names only for evaluation.
+==============================================================================*/
+
+USE ROLE DATA_GOVERNANCE_ADMIN;
+USE WAREHOUSE WH_GOVERNANCE_XS;
+USE DATABASE GOVERNANCE;
+USE SCHEMA CATALOG;
+
+TRUNCATE TABLE GOVERNANCE.CATALOG.SEALED_SENSITIVE_COLUMN;
+
+INSERT INTO GOVERNANCE.CATALOG.SEALED_SENSITIVE_COLUMN
+(
+    RAW_TABLE_NAME,
+    RAW_COLUMN_NAME,
+    STAGING_TABLE_NAME,
+    STAGING_COLUMN_NAME,
+    EXPECTED_SENSITIVE,
+    EXPECTED_SENSITIVE_CONTENT,
+    DELIBERATELY_MISLABELED,
+    FULLY_QUALIFIED_NAME
+)
+SELECT
+    UPPER(F.VALUE:table::VARCHAR) AS RAW_TABLE_NAME,
+    UPPER(F.VALUE:column::VARCHAR) AS RAW_COLUMN_NAME,
+    'STG_' || UPPER(F.VALUE:table::VARCHAR) AS STAGING_TABLE_NAME,
+    UPPER(F.VALUE:column::VARCHAR) AS STAGING_COLUMN_NAME,
+    F.VALUE:expected_sensitive::BOOLEAN AS EXPECTED_SENSITIVE,
+    UPPER(F.VALUE:expected_sensitive_content::VARCHAR)
+        AS EXPECTED_SENSITIVE_CONTENT,
+    F.VALUE:deliberately_mislabeled::BOOLEAN AS DELIBERATELY_MISLABELED,
+    F.VALUE:fully_qualified_name::VARCHAR AS FULLY_QUALIFIED_NAME
+FROM @GOVERNANCE.CATALOG.CLASSIFICATION_FILE_STAGE STAGED_FILE,
+    LATERAL FLATTEN(INPUT => STAGED_FILE.$1:sensitive_columns) F
+WHERE STAGED_FILE.METADATA$FILENAME ILIKE '%sealed_sensitive_columns.json';
+
+SELECT
+    RAW_TABLE_NAME,
+    RAW_COLUMN_NAME,
+    STAGING_TABLE_NAME,
+    STAGING_COLUMN_NAME,
+    EXPECTED_SENSITIVE_CONTENT,
+    DELIBERATELY_MISLABELED
+FROM GOVERNANCE.CATALOG.SEALED_SENSITIVE_COLUMN
+ORDER BY
+    RAW_TABLE_NAME,
+    RAW_COLUMN_NAME;

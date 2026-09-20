@@ -1,0 +1,68 @@
+CLASSIFICATION
+────────────────────────────────────────
+
+classification/01_permissions.sql
+        ↓
+02_create_classification_profile.sql
+        ↓
+03_create_custom_classifier.sql
+        ↓
+04_prepare_classification_tables.sql
+        ↓
+snow stage copy data/sealed_sensitive_columns.json \
+  @GOVERNANCE.CATALOG.CLASSIFICATION_FILE_STAGE \
+  --overwrite \
+  -c avidia \
+  --role DATA_GOVERNANCE_ADMIN \
+  --warehouse WH_GOVERNANCE_XS
+        ↓
+05_load_sealed_sensitive_list.sql
+        ↓
+06_run_staging_classification.sql
+        ↓
+07_capture_classification_results.sql
+        ↓
+08_precision_recall.sql
+        ↓
+09_create_review_procedures.sql
+        ↓
+compare_sensitive_sealed_list.sql
+
+        ↓
+   MANUAL STEWARD REVIEW
+        ↓
+APPROVE_CLASSIFICATION(...)
+REJECT_CLASSIFICATION(...)
+
+        ↓
+ -- should be updated on the response of compare_sensitive_sealed_list.sql
+approve_reject_classification_based_on_list.sql
+
+        ↓
+10_sync_confirmed_classification_tags.sql
+        ↓
+existing metadata/07_apply_tags.sql
+        ↓
+11_validate_classification.sql
+
+
+PROTECTION
+────────────────────────────────────────
+
+protection/01_permissions.sql
+        ↓
+02_create_masking_policies.sql
+        ↓
+03_bind_masking_policies.sql
+        ↓
+04_create_branch_entitlements.sql
+        ↓
+05_create_row_access_policy.sql
+        ↓
+06_apply_row_access_policy.sql
+        ↓
+07_validate_masking_by_role.sql
+        ↓
+08_validate_branch_access.sql
+        ↓
+09_sensitive_policy_gap_report.sql
