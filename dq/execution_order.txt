@@ -1,0 +1,6 @@
+snow sql -c avidia -f dq/00_permissions.sql
+snow sql -c avidia -f dq/01_create_dq_result.sql
+snow sql -c avidia -f dq/02_create_custom_dmfs.sql
+snow sql -c avidia -f dq/03_attach_dq_checks.sql
+snow sql -c avidia -f dq/04_run_and_persist_dq.sql
+snow sql -c avidia -f dq/05_validate_dq_results.sql
