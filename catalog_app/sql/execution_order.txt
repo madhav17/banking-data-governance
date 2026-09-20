@@ -1,0 +1,3 @@
+snow sql -c avidia -f catalog_app/sql/00_permissions.sql
+snow sql -c avidia -f catalog_app/sql/01_create_catalog_view.sql
+snow sql -c avidia -f catalog_app/sql/02_validate_catalog_view.sql
