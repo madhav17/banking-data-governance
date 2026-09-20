@@ -1,0 +1,145 @@
+{{
+    config(
+        materialized='incremental',
+        incremental_strategy='insert_overwrite'
+    )
+}}
+
+WITH BALANCE AS (
+    SELECT
+        ACCOUNT_ID,
+        BUSINESS_DATE,
+        OPENING_BALANCE,
+        CLOSING_BALANCE,
+        AVAILABLE_BALANCE,
+        CURRENCY,
+        SOURCE_SYSTEM,
+        LOAD_TIMESTAMP,
+        STG_LOADED_AT,
+        STG_UPDATED_AT
+    FROM {{ source('staging', 'stg_account_daily_balance') }}
+),
+
+ACCOUNT AS (
+    SELECT
+        ACCOUNT_ID,
+        ACCOUNT_NUMBER,
+        CUSTOMER_ID,
+        PRODUCT_ID,
+        BRANCH_ID,
+        OPEN_DATE,
+        CLOSE_DATE,
+        ACCOUNT_STATUS,
+        CURRENCY AS ACCOUNT_CURRENCY,
+        CURRENT_BALANCE,
+        ACCOUNT_TYPE
+    FROM {{ source('staging', 'stg_account') }}
+),
+
+CUSTOMER AS (
+    SELECT
+        CUSTOMER_ID,
+        CUSTOMER_TYPE,
+        COALESCE(
+            BUSINESS_NAME,
+            NULLIF(TRIM(CONCAT(COALESCE(FIRST_NAME, ''), ' ', COALESCE(LAST_NAME, ''))), '')
+        ) AS CUSTOMER_DISPLAY_NAME,
+        CUSTOMER_STATUS
+    FROM {{ source('staging', 'stg_customer') }}
+),
+
+PRODUCT AS (
+    SELECT
+        PRODUCT_ID,
+        PRODUCT_CODE,
+        PRODUCT_NAME,
+        PRODUCT_TYPE,
+        CURRENCY AS PRODUCT_CURRENCY
+    FROM {{ source('staging', 'stg_product') }}
+),
+
+BRANCH AS (
+    SELECT
+        BRANCH_ID,
+        BRANCH_CODE,
+        BRANCH_NAME,
+        REGION AS BRANCH_REGION
+    FROM {{ source('staging', 'stg_branch') }}
+),
+
+FINAL AS (
+    SELECT
+        B.ACCOUNT_ID,
+        B.BUSINESS_DATE,
+        A.ACCOUNT_NUMBER,
+        A.CUSTOMER_ID,
+        C.CUSTOMER_TYPE,
+        C.CUSTOMER_DISPLAY_NAME,
+        C.CUSTOMER_STATUS,
+        A.PRODUCT_ID,
+        P.PRODUCT_CODE,
+        P.PRODUCT_NAME,
+        P.PRODUCT_TYPE,
+        A.BRANCH_ID,
+        BR.BRANCH_CODE,
+        BR.BRANCH_NAME,
+        BR.BRANCH_REGION,
+        A.OPEN_DATE AS ACCOUNT_OPEN_DATE,
+        A.CLOSE_DATE AS ACCOUNT_CLOSE_DATE,
+        A.ACCOUNT_STATUS,
+        A.ACCOUNT_TYPE,
+        COALESCE(B.CURRENCY, A.ACCOUNT_CURRENCY, P.PRODUCT_CURRENCY) AS CURRENCY,
+        B.OPENING_BALANCE,
+        B.CLOSING_BALANCE,
+        B.AVAILABLE_BALANCE,
+        A.CURRENT_BALANCE AS ACCOUNT_CURRENT_BALANCE,
+        B.SOURCE_SYSTEM,
+        B.LOAD_TIMESTAMP,
+        B.STG_LOADED_AT,
+        B.STG_UPDATED_AT,
+        CASE
+            WHEN A.ACCOUNT_STATUS = 'ACTIVE' THEN TRUE
+            ELSE FALSE
+        END AS IS_ACTIVE_ACCOUNT
+    FROM BALANCE AS B
+    LEFT JOIN ACCOUNT AS A
+        ON B.ACCOUNT_ID = A.ACCOUNT_ID
+    LEFT JOIN CUSTOMER AS C
+        ON A.CUSTOMER_ID = C.CUSTOMER_ID
+    LEFT JOIN PRODUCT AS P
+        ON A.PRODUCT_ID = P.PRODUCT_ID
+    LEFT JOIN BRANCH AS BR
+        ON A.BRANCH_ID = BR.BRANCH_ID
+)
+
+SELECT
+    ACCOUNT_ID,
+    BUSINESS_DATE,
+    ACCOUNT_NUMBER,
+    CUSTOMER_ID,
+    CUSTOMER_TYPE,
+    CUSTOMER_DISPLAY_NAME,
+    CUSTOMER_STATUS,
+    PRODUCT_ID,
+    PRODUCT_CODE,
+    PRODUCT_NAME,
+    PRODUCT_TYPE,
+    BRANCH_ID,
+    BRANCH_CODE,
+    BRANCH_NAME,
+    BRANCH_REGION,
+    ACCOUNT_OPEN_DATE,
+    ACCOUNT_CLOSE_DATE,
+    ACCOUNT_STATUS,
+    ACCOUNT_TYPE,
+    CURRENCY,
+    OPENING_BALANCE,
+    CLOSING_BALANCE,
+    AVAILABLE_BALANCE,
+    ACCOUNT_CURRENT_BALANCE,
+    SOURCE_SYSTEM,
+    LOAD_TIMESTAMP,
+    STG_LOADED_AT,
+    STG_UPDATED_AT,
+    IS_ACTIVE_ACCOUNT
+FROM FINAL

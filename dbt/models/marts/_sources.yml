@@ -1,0 +1,38 @@
+version: 2
+
+sources:
+  - name: staging
+    description: Physical Snowflake STAGING tables populated outside dbt from RAW.BANKING.
+    database: "{{ var('analytics_database', 'ANALYTICS') }}"
+    schema: "{{ var('staging_schema', 'STAGING') }}"
+    tables:
+      - name: stg_customer
+        identifier: STG_CUSTOMER
+        description: Standardized customer profile records preserving sensitive fields for later governance controls.
+      - name: stg_account
+        identifier: STG_ACCOUNT
+        description: Standardized deposit account records at one row per ACCOUNT_ID.
+      - name: stg_account_daily_balance
+        identifier: STG_ACCOUNT_DAILY_BALANCE
+        description: Daily account balance snapshots at ACCOUNT_ID and BUSINESS_DATE grain.
+      - name: stg_transactions
+        identifier: STG_TRANSACTIONS
+        description: Standardized transaction postings preserving reference and memo fields for later classification.
+      - name: stg_loan
+        identifier: STG_LOAN
+        description: Standardized lending records at one row per LOAN_ID.
+      - name: stg_loan_collateral
+        identifier: STG_LOAN_COLLATERAL
+        description: Collateral records associated with loans.
+      - name: stg_card
+        identifier: STG_CARD
+        description: Standardized payment card records associated with customers and accounts.
+      - name: stg_branch
+        identifier: STG_BRANCH
+        description: Branch reference data.
+      - name: stg_product
+        identifier: STG_PRODUCT
+        description: Product reference data for deposits and lending.
+      - name: stg_officer
+        identifier: STG_OFFICER
+        description: Officer reference data.

@@ -152,6 +152,9 @@ jobs:
             echo "DBT_SNOWFLAKE_DATABASE=${CI_DATABASE}"
             echo "SNOWFLAKE_DATABASE=${CI_DATABASE}"
             echo "DBT_CI_SCHEMA=${CI_SCHEMA}"
+            echo "ANALYTICS_DATABASE=${CI_DATABASE}"
+            echo "STAGING_SCHEMA=STAGING"
+            echo "MARTS_SCHEMA=${CI_SCHEMA}"
           } >> "${GITHUB_ENV}"
 
       - name: Print CI configuration
@@ -168,6 +171,8 @@ jobs:
           echo "Snowflake authenticator: ${SNOWFLAKE_AUTHENTICATOR}"
           echo "Snowflake base database: ${BASE_DATABASE}"
           echo "Snowflake CI database: ${CI_DATABASE}"
+          echo "dbt source database: ${ANALYTICS_DATABASE}"
+          echo "dbt source schema: ${STAGING_SCHEMA}"
           echo "dbt CI schema: ${DBT_CI_SCHEMA}"
           echo "dbt threads: ${DBT_THREADS}"
 

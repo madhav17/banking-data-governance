@@ -1,0 +1,164 @@
+{{
+    config(
+        materialized='incremental',
+        incremental_strategy='insert_overwrite'
+    )
+}}
+
+WITH LOAN AS (
+    SELECT
+        LOAN_ID,
+        LOAN_NUMBER,
+        CUSTOMER_ID,
+        PRODUCT_ID,
+        BRANCH_ID,
+        OFFICER_ID,
+        LOAN_TYPE,
+        LOAN_AMOUNT,
+        OUTSTANDING_AMOUNT,
+        INTEREST_RATE,
+        TENURE_MONTHS,
+        START_DATE,
+        MATURITY_DATE,
+        CREDIT_GRADE,
+        LOAN_STATUS
+    FROM {{ source('staging', 'stg_loan') }}
+),
+
+CUSTOMER AS (
+    SELECT
+        CUSTOMER_ID,
+        CUSTOMER_TYPE,
+        COALESCE(
+            BUSINESS_NAME,
+            NULLIF(TRIM(CONCAT(COALESCE(FIRST_NAME, ''), ' ', COALESCE(LAST_NAME, ''))), '')
+        ) AS CUSTOMER_DISPLAY_NAME,
+        CUSTOMER_STATUS
+    FROM {{ source('staging', 'stg_customer') }}
+),
+
+PRODUCT AS (
+    SELECT
+        PRODUCT_ID,
+        PRODUCT_CODE,
+        PRODUCT_NAME,
+        PRODUCT_TYPE
+    FROM {{ source('staging', 'stg_product') }}
+),
+
+BRANCH AS (
+    SELECT
+        BRANCH_ID,
+        BRANCH_CODE,
+        BRANCH_NAME,
+        REGION AS BRANCH_REGION
+    FROM {{ source('staging', 'stg_branch') }}
+),
+
+OFFICER AS (
+    SELECT
+        OFFICER_ID,
+        OFFICER_CODE,
+        OFFICER_NAME,
+        ROLE AS OFFICER_ROLE
+    FROM {{ source('staging', 'stg_officer') }}
+),
+
+-- Aggregate collateral first so each loan remains one row in the final mart.
+COLLATERAL_SUMMARY AS (
+    SELECT
+        LOAN_ID,
+        COUNT(DISTINCT COLLATERAL_ID) AS COLLATERAL_COUNT,
+        LISTAGG(DISTINCT COLLATERAL_TYPE, ', ')
+            WITHIN GROUP (ORDER BY COLLATERAL_TYPE) AS COLLATERAL_TYPES,
+        SUM(COALESCE(VALUATION_AMOUNT, 0)) AS TOTAL_COLLATERAL_VALUE,
+        MAX(VALUATION_DATE) AS LATEST_COLLATERAL_VALUATION_DATE
+    FROM {{ source('staging', 'stg_loan_collateral') }}
+    WHERE LOAN_ID IS NOT NULL
+    GROUP BY LOAN_ID
+),
+
+FINAL AS (
+    SELECT
+        L.LOAN_ID,
+        L.LOAN_NUMBER,
+        L.CUSTOMER_ID,
+        C.CUSTOMER_TYPE,
+        C.CUSTOMER_DISPLAY_NAME,
+        C.CUSTOMER_STATUS,
+        L.PRODUCT_ID,
+        P.PRODUCT_CODE,
+        P.PRODUCT_NAME,
+        P.PRODUCT_TYPE,
+        L.BRANCH_ID,
+        B.BRANCH_CODE,
+        B.BRANCH_NAME,
+        B.BRANCH_REGION,
+        L.OFFICER_ID,
+        O.OFFICER_CODE,
+        O.OFFICER_NAME,
+        O.OFFICER_ROLE,
+        L.LOAN_TYPE,
+        L.LOAN_AMOUNT,
+        L.OUTSTANDING_AMOUNT,
+        L.INTEREST_RATE,
+        L.TENURE_MONTHS,
+        L.START_DATE,
+        L.MATURITY_DATE,
+        L.CREDIT_GRADE,
+        L.LOAN_STATUS,
+        COALESCE(CS.COLLATERAL_COUNT, 0) AS COLLATERAL_COUNT,
+        CS.COLLATERAL_TYPES,
+        COALESCE(CS.TOTAL_COLLATERAL_VALUE, 0) AS TOTAL_COLLATERAL_VALUE,
+        CS.LATEST_COLLATERAL_VALUATION_DATE,
+        CASE
+            WHEN COALESCE(CS.TOTAL_COLLATERAL_VALUE, 0) > 0
+                THEN L.OUTSTANDING_AMOUNT / CS.TOTAL_COLLATERAL_VALUE
+        END AS LOAN_TO_VALUE_RATIO
+    FROM LOAN AS L
+    LEFT JOIN CUSTOMER AS C
+        ON L.CUSTOMER_ID = C.CUSTOMER_ID
+    LEFT JOIN PRODUCT AS P
+        ON L.PRODUCT_ID = P.PRODUCT_ID
+    LEFT JOIN BRANCH AS B
+        ON L.BRANCH_ID = B.BRANCH_ID
+    LEFT JOIN OFFICER AS O
+        ON L.OFFICER_ID = O.OFFICER_ID
+    LEFT JOIN COLLATERAL_SUMMARY AS CS
+        ON L.LOAN_ID = CS.LOAN_ID
+)
+
+SELECT
+    LOAN_ID,
+    LOAN_NUMBER,
+    CUSTOMER_ID,
+    CUSTOMER_TYPE,
+    CUSTOMER_DISPLAY_NAME,
+    CUSTOMER_STATUS,
+    PRODUCT_ID,
+    PRODUCT_CODE,
+    PRODUCT_NAME,
+    PRODUCT_TYPE,
+    BRANCH_ID,
+    BRANCH_CODE,
+    BRANCH_NAME,
+    BRANCH_REGION,
+    OFFICER_ID,
+    OFFICER_CODE,
+    OFFICER_NAME,
+    OFFICER_ROLE,
+    LOAN_TYPE,
+    LOAN_AMOUNT,
+    OUTSTANDING_AMOUNT,
+    INTEREST_RATE,
+    TENURE_MONTHS,
+    START_DATE,
+    MATURITY_DATE,
+    CREDIT_GRADE,
+    LOAN_STATUS,
+    COLLATERAL_COUNT,
+    COLLATERAL_TYPES,
+    TOTAL_COLLATERAL_VALUE,
+    LATEST_COLLATERAL_VALUATION_DATE,
+    LOAN_TO_VALUE_RATIO
+FROM FINAL

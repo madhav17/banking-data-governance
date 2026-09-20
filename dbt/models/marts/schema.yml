@@ -1,0 +1,100 @@
+version: 2
+
+models:
+  - name: customer_360
+    description: >
+      Customer-centric mart at one row per CUSTOMER_ID. It combines customer
+      profile data with pre-aggregated account, transaction, loan, and card
+      activity without multiplying customer rows.
+    config:
+      meta:
+        domain: CUSTOMER
+        layer: MART
+    columns:
+      - name: CUSTOMER_ID
+        description: Customer business key and grain of CUSTOMER_360.
+        data_tests:
+          - not_null
+          - unique
+      - name: CUSTOMER_DISPLAY_NAME
+        description: Business name for commercial customers, otherwise the person name.
+      - name: TAX_ID
+        description: Sensitive tax identifier retained for later masking and classification demonstrations.
+      - name: ACCOUNT_COUNT
+        description: Count of distinct deposit accounts linked to the customer.
+      - name: ACTIVE_ACCOUNT_COUNT
+        description: Count of linked accounts with ACCOUNT_STATUS equal to ACTIVE.
+      - name: TOTAL_DEPOSIT_BALANCE
+        description: Sum of current account balances across linked deposit accounts.
+      - name: TRANSACTION_COUNT
+        description: Count of distinct transactions linked to the customer.
+      - name: LAST_TRANSACTION_DATE
+        description: Most recent posting date or transaction date for the customer.
+      - name: LOAN_COUNT
+        description: Count of distinct loans linked to the customer.
+      - name: LOAN_OUTSTANDING_BALANCE
+        description: Sum of outstanding loan balances linked to the customer.
+      - name: CARD_COUNT
+        description: Count of distinct cards linked to the customer.
+
+  - name: deposits_daily
+    description: >
+      Daily deposit account mart at one row per ACCOUNT_ID and BUSINESS_DATE.
+      This is the future primary certified data product and keeps the
+      account/day grain needed for later DQ and GL reconciliation checks.
+    config:
+      meta:
+        domain: DEPOSITS
+        layer: MART
+    columns:
+      - name: ACCOUNT_ID
+        description: Account business key and first component of the DEPOSITS_DAILY grain.
+        data_tests:
+          - not_null
+      - name: BUSINESS_DATE
+        description: Balance business date and second component of the DEPOSITS_DAILY grain.
+        data_tests:
+          - not_null
+      - name: ACCOUNT_NUMBER
+        description: Source account number retained for future masking/classification.
+      - name: CUSTOMER_ID
+        description: Customer associated with the account.
+      - name: PRODUCT_TYPE
+        description: Banking product type from the product reference table.
+      - name: BRANCH_ID
+        description: Branch associated with the account.
+      - name: OPENING_BALANCE
+        description: Account opening balance for the business date.
+      - name: CLOSING_BALANCE
+        description: Account closing balance for the business date.
+      - name: AVAILABLE_BALANCE
+        description: Available account balance for the business date.
+      - name: SOURCE_SYSTEM
+        description: Source system supplied by the daily balance feed.
+
+  - name: loan_portfolio
+    description: >
+      Lending mart at one row per LOAN_ID. It combines loan exposure data with
+      borrower, branch, product, officer, and aggregated collateral attributes.
+    config:
+      meta:
+        domain: LENDING
+        layer: MART
+    columns:
+      - name: LOAN_ID
+        description: Loan business key and grain of LOAN_PORTFOLIO.
+        data_tests:
+          - not_null
+          - unique
+      - name: CUSTOMER_ID
+        description: Borrower customer identifier.
+      - name: LOAN_AMOUNT
+        description: Original loan amount.
+      - name: OUTSTANDING_AMOUNT
+        description: Current outstanding loan exposure.
+      - name: CREDIT_GRADE
+        description: Credit grade supplied by the source loan system.
+      - name: TOTAL_COLLATERAL_VALUE
+        description: Sum of collateral valuation amounts linked to the loan.
+      - name: LOAN_TO_VALUE_RATIO
+        description: Outstanding amount divided by total collateral value when collateral value is greater than zero.

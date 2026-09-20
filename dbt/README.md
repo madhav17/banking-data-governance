@@ -1,14 +1,15 @@
-# Avidia Banking dbt Skeleton
+# Avidia Banking dbt Project
 
-This directory is the initial dbt project shell for future STAGING to MARTS transformations.
-It intentionally contains no Avidia business mart logic yet.
+This directory contains the dbt project for transforming the completed Snowflake
+`ANALYTICS.STAGING` layer into governed business marts in `ANALYTICS.MARTS`.
 
 ## What Exists Now
 
 - `dbt_project.yml` defines the dbt project and model paths.
 - `profiles.yml` is for dbt Core and future GitHub Actions execution.
 - `dbt_projects_profiles.yml` is the Snowflake dbt Project profile template.
-- Empty folders are reserved with `.gitkeep` for future staging, intermediate, marts, tests, macros, seeds, and snapshots.
+- `models/marts/` contains the three business mart models and their source/model documentation.
+- `tests/` contains lightweight singular dbt tests that do not require extra packages.
 
 ## Local Validation Commands
 

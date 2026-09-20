@@ -1,0 +1,210 @@
+{{
+    config(
+        materialized='incremental',
+        incremental_strategy='insert_overwrite'
+    )
+}}
+
+WITH CUSTOMER AS (
+    SELECT
+        CUSTOMER_ID,
+        CUSTOMER_TYPE,
+        FIRST_NAME,
+        LAST_NAME,
+        BUSINESS_NAME,
+        TAX_ID,
+        DATE_OF_BIRTH,
+        EMAIL,
+        PHONE,
+        ADDRESS_LINE1,
+        CITY,
+        STATE,
+        POSTAL_CODE,
+        COUNTRY,
+        BRANCH_ID,
+        OFFICER_ID,
+        CUSTOMER_STATUS,
+        CREATED_DATE,
+        UPDATED_TIMESTAMP,
+        CUST_REF,
+        NOTES
+    FROM {{ source('staging', 'stg_customer') }}
+),
+
+BRANCH AS (
+    SELECT
+        BRANCH_ID,
+        BRANCH_CODE,
+        BRANCH_NAME,
+        REGION AS BRANCH_REGION,
+        CITY AS BRANCH_CITY,
+        STATE AS BRANCH_STATE
+    FROM {{ source('staging', 'stg_branch') }}
+),
+
+OFFICER AS (
+    SELECT
+        OFFICER_ID,
+        OFFICER_CODE,
+        OFFICER_NAME
+    FROM {{ source('staging', 'stg_officer') }}
+),
+
+-- Aggregate accounts first to preserve one row per customer in the final mart.
+ACCOUNT_SUMMARY AS (
+    SELECT
+        CUSTOMER_ID,
+        COUNT(DISTINCT ACCOUNT_ID) AS ACCOUNT_COUNT,
+        SUM(
+            CASE
+                WHEN ACCOUNT_STATUS = 'ACTIVE' THEN 1
+                ELSE 0
+            END
+        ) AS ACTIVE_ACCOUNT_COUNT,
+        SUM(COALESCE(CURRENT_BALANCE, 0)) AS TOTAL_DEPOSIT_BALANCE,
+        MIN(OPEN_DATE) AS FIRST_ACCOUNT_OPEN_DATE,
+        MAX(OPEN_DATE) AS MOST_RECENT_ACCOUNT_OPEN_DATE
+    FROM {{ source('staging', 'stg_account') }}
+    WHERE CUSTOMER_ID IS NOT NULL
+    GROUP BY CUSTOMER_ID
+),
+
+-- Aggregate transactions first to avoid multiplying the customer row.
+TRANSACTION_SUMMARY AS (
+    SELECT
+        CUSTOMER_ID,
+        COUNT(DISTINCT TRANSACTION_ID) AS TRANSACTION_COUNT,
+        MAX(COALESCE(POSTING_DATE, TRANSACTION_DATE)) AS LAST_TRANSACTION_DATE
+    FROM {{ source('staging', 'stg_transactions') }}
+    WHERE CUSTOMER_ID IS NOT NULL
+    GROUP BY CUSTOMER_ID
+),
+
+-- Aggregate loans at customer grain before joining to the customer profile.
+LOAN_SUMMARY AS (
+    SELECT
+        CUSTOMER_ID,
+        COUNT(DISTINCT LOAN_ID) AS LOAN_COUNT,
+        SUM(COALESCE(OUTSTANDING_AMOUNT, 0)) AS LOAN_OUTSTANDING_BALANCE
+    FROM {{ source('staging', 'stg_loan') }}
+    WHERE CUSTOMER_ID IS NOT NULL
+    GROUP BY CUSTOMER_ID
+),
+
+-- Aggregate cards at customer grain before joining to the customer profile.
+CARD_SUMMARY AS (
+    SELECT
+        CUSTOMER_ID,
+        COUNT(DISTINCT CARD_ID) AS CARD_COUNT,
+        SUM(
+            CASE
+                WHEN CARD_STATUS = 'ACTIVE' THEN 1
+                ELSE 0
+            END
+        ) AS ACTIVE_CARD_COUNT
+    FROM {{ source('staging', 'stg_card') }}
+    WHERE CUSTOMER_ID IS NOT NULL
+    GROUP BY CUSTOMER_ID
+),
+
+FINAL AS (
+    SELECT
+        C.CUSTOMER_ID,
+        C.CUSTOMER_TYPE,
+        NULLIF(TRIM(CONCAT(COALESCE(C.FIRST_NAME, ''), ' ', COALESCE(C.LAST_NAME, ''))), '')
+            AS CUSTOMER_PERSON_NAME,
+        C.BUSINESS_NAME,
+        COALESCE(
+            C.BUSINESS_NAME,
+            NULLIF(TRIM(CONCAT(COALESCE(C.FIRST_NAME, ''), ' ', COALESCE(C.LAST_NAME, ''))), '')
+        ) AS CUSTOMER_DISPLAY_NAME,
+        C.TAX_ID,
+        C.DATE_OF_BIRTH,
+        C.EMAIL,
+        C.PHONE,
+        C.ADDRESS_LINE1,
+        C.CITY,
+        C.STATE,
+        C.POSTAL_CODE,
+        C.COUNTRY,
+        C.BRANCH_ID,
+        B.BRANCH_CODE,
+        B.BRANCH_NAME,
+        B.BRANCH_REGION,
+        B.BRANCH_CITY,
+        B.BRANCH_STATE,
+        C.OFFICER_ID,
+        O.OFFICER_CODE,
+        O.OFFICER_NAME,
+        C.CUSTOMER_STATUS,
+        C.CREATED_DATE,
+        C.UPDATED_TIMESTAMP,
+        C.CUST_REF,
+        C.NOTES,
+        COALESCE(A.ACCOUNT_COUNT, 0) AS ACCOUNT_COUNT,
+        COALESCE(A.ACTIVE_ACCOUNT_COUNT, 0) AS ACTIVE_ACCOUNT_COUNT,
+        COALESCE(A.TOTAL_DEPOSIT_BALANCE, 0) AS TOTAL_DEPOSIT_BALANCE,
+        A.FIRST_ACCOUNT_OPEN_DATE,
+        A.MOST_RECENT_ACCOUNT_OPEN_DATE,
+        COALESCE(T.TRANSACTION_COUNT, 0) AS TRANSACTION_COUNT,
+        T.LAST_TRANSACTION_DATE,
+        COALESCE(L.LOAN_COUNT, 0) AS LOAN_COUNT,
+        COALESCE(L.LOAN_OUTSTANDING_BALANCE, 0) AS LOAN_OUTSTANDING_BALANCE,
+        COALESCE(CD.CARD_COUNT, 0) AS CARD_COUNT,
+        COALESCE(CD.ACTIVE_CARD_COUNT, 0) AS ACTIVE_CARD_COUNT
+    FROM CUSTOMER AS C
+    LEFT JOIN BRANCH AS B
+        ON C.BRANCH_ID = B.BRANCH_ID
+    LEFT JOIN OFFICER AS O
+        ON C.OFFICER_ID = O.OFFICER_ID
+    LEFT JOIN ACCOUNT_SUMMARY AS A
+        ON C.CUSTOMER_ID = A.CUSTOMER_ID
+    LEFT JOIN TRANSACTION_SUMMARY AS T
+        ON C.CUSTOMER_ID = T.CUSTOMER_ID
+    LEFT JOIN LOAN_SUMMARY AS L
+        ON C.CUSTOMER_ID = L.CUSTOMER_ID
+    LEFT JOIN CARD_SUMMARY AS CD
+        ON C.CUSTOMER_ID = CD.CUSTOMER_ID
+)
+
+SELECT
+    CUSTOMER_ID,
+    CUSTOMER_TYPE,
+    CUSTOMER_PERSON_NAME,
+    BUSINESS_NAME,
+    CUSTOMER_DISPLAY_NAME,
+    TAX_ID,
+    DATE_OF_BIRTH,
+    EMAIL,
+    PHONE,
+    ADDRESS_LINE1,
+    CITY,
+    STATE,
+    POSTAL_CODE,
+    COUNTRY,
+    BRANCH_ID,
+    BRANCH_CODE,
+    BRANCH_NAME,
+    BRANCH_REGION,
+    BRANCH_CITY,
+    BRANCH_STATE,
+    OFFICER_ID,
+    OFFICER_CODE,
+    OFFICER_NAME,
+    CUSTOMER_STATUS,
+    CREATED_DATE,
+    UPDATED_TIMESTAMP,
+    CUST_REF,
+    NOTES,
+    ACCOUNT_COUNT,
+    ACTIVE_ACCOUNT_COUNT,
+    TOTAL_DEPOSIT_BALANCE,
+    FIRST_ACCOUNT_OPEN_DATE,
+    MOST_RECENT_ACCOUNT_OPEN_DATE,
+    TRANSACTION_COUNT,
+    LAST_TRANSACTION_DATE,
+    LOAN_COUNT,
+    LOAN_OUTSTANDING_BALANCE,
+    CARD_COUNT,
+    ACTIVE_CARD_COUNT
+FROM FINAL

@@ -1,0 +1,9 @@
+SELECT
+    ACCOUNT_ID,
+    BUSINESS_DATE,
+    COUNT(*) AS ROW_COUNT
+FROM {{ ref('deposits_daily') }}
+GROUP BY
+    ACCOUNT_ID,
+    BUSINESS_DATE
+HAVING COUNT(*) > 1
