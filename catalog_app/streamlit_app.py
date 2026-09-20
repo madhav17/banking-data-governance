@@ -50,6 +50,35 @@ def render_upstream_sources(upstream_sources: list[str]) -> None:
         st.markdown(f"- `{source}`")
 
 
+def render_scorecard(service: SnowflakeCatalogService) -> None:
+    st.subheader("Governance Scorecard")
+
+    try:
+        scorecard = service.get_scorecard()
+    except Exception as exc:
+        st.error("Unable to load GOVERNANCE.CATALOG.CATALOG_SCORECARD.")
+        st.caption(
+            "Run scorecard/00_create_catalog_scorecard_view.sql and "
+            "scorecard/01_validate_scorecard.sql, then refresh the app."
+        )
+        st.exception(exc)
+        return
+
+    st.dataframe(
+        scorecard,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "DIMENSION": "Dimension",
+            "NUMERATOR": "Numerator",
+            "DENOMINATOR": "Denominator",
+            "SCORE_PCT": "Score %",
+            "STATUS": "Status",
+            "DESCRIPTION": "Description",
+        },
+    )
+
+
 def main() -> None:
     st.set_page_config(page_title="Avidia Data Catalog", layout="wide")
 
@@ -67,70 +96,76 @@ def main() -> None:
         st.exception(exc)
         st.stop()
 
-    search_query = st.text_input(
-        "Search catalog",
-        placeholder="Search by table, column, description, or domain",
-    )
+    catalog_tab, scorecard_tab = st.tabs(["Data Catalog", "Governance Scorecard"])
 
-    search_results = service.search_objects(search_query)
+    with catalog_tab:
+        search_query = st.text_input(
+            "Search catalog",
+            placeholder="Search by table, column, description, or domain",
+        )
 
-    filter_col_1, filter_col_2, filter_col_3, filter_col_4 = st.columns(4)
-    database_filter = filter_col_1.selectbox(
-        "Database",
-        ["All"] + sorted({row["database"] for row in all_objects}),
-    )
-    schema_filter = filter_col_2.selectbox(
-        "Schema",
-        ["All"] + sorted({row["schema"] for row in all_objects}),
-    )
-    certification_filter = filter_col_3.selectbox(
-        "Certification",
-        ["All"] + sorted({row["certification"] for row in all_objects}),
-    )
-    classification_filter = filter_col_4.selectbox(
-        "Classification",
-        ["All"] + sorted({row["classification"] for row in all_objects}),
-    )
+        search_results = service.search_objects(search_query)
 
-    filtered_results = [
-        row
-        for row in search_results
-        if (database_filter == "All" or row["database"] == database_filter)
-        and (schema_filter == "All" or row["schema"] == schema_filter)
-        and (certification_filter == "All" or row["certification"] == certification_filter)
-        and (classification_filter == "All" or row["classification"] == classification_filter)
-    ]
+        filter_col_1, filter_col_2, filter_col_3, filter_col_4 = st.columns(4)
+        database_filter = filter_col_1.selectbox(
+            "Database",
+            ["All"] + sorted({row["database"] for row in all_objects}),
+        )
+        schema_filter = filter_col_2.selectbox(
+            "Schema",
+            ["All"] + sorted({row["schema"] for row in all_objects}),
+        )
+        certification_filter = filter_col_3.selectbox(
+            "Certification",
+            ["All"] + sorted({row["certification"] for row in all_objects}),
+        )
+        classification_filter = filter_col_4.selectbox(
+            "Classification",
+            ["All"] + sorted({row["classification"] for row in all_objects}),
+        )
 
-    with st.expander("Search Results", expanded=bool(search_query)):
-        render_search_results(filtered_results)
+        filtered_results = [
+            row
+            for row in search_results
+            if (database_filter == "All" or row["database"] == database_filter)
+            and (schema_filter == "All" or row["schema"] == schema_filter)
+            and (certification_filter == "All" or row["certification"] == certification_filter)
+            and (classification_filter == "All" or row["classification"] == classification_filter)
+        ]
 
-    selectable_objects = [result["object_fqn"] for result in filtered_results]
-    if not selectable_objects:
-        st.info("No objects match the current search and filters.")
-        st.stop()
+        with st.expander("Search Results", expanded=bool(search_query)):
+            render_search_results(filtered_results)
 
-    selected_object = st.selectbox(
-        "Object",
-        selectable_objects,
-        help="Select a governed MART object from the live catalog view.",
-    )
+        selectable_objects = [result["object_fqn"] for result in filtered_results]
+        if not selectable_objects:
+            st.info("No objects match the current search and filters.")
+            st.stop()
 
-    details = service.get_object_details(selected_object)
-    columns = service.get_columns(selected_object)
-    upstream_sources = service.get_upstream_sources(selected_object)
+        selected_object = st.selectbox(
+            "Object",
+            selectable_objects,
+            help="Select a governed MART object from the live catalog view.",
+        )
 
-    st.divider()
-    render_object_summary(details)
+        details = service.get_object_details(selected_object)
+        columns = service.get_columns(selected_object)
+        upstream_sources = service.get_upstream_sources(selected_object)
 
-    st.divider()
-    render_governance_cards(details)
-    render_operational_status(details)
+        st.divider()
+        render_object_summary(details)
 
-    st.divider()
-    render_column_table(columns)
+        st.divider()
+        render_governance_cards(details)
+        render_operational_status(details)
 
-    st.divider()
-    render_upstream_sources(upstream_sources)
+        st.divider()
+        render_column_table(columns)
+
+        st.divider()
+        render_upstream_sources(upstream_sources)
+
+    with scorecard_tab:
+        render_scorecard(service)
 
 
 if __name__ == "__main__":

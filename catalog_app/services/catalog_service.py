@@ -20,6 +20,10 @@ class CatalogService(ABC):
     def get_upstream_sources(self, object_fqn: str) -> list[str]:
         """Return upstream source objects for a fully qualified object name."""
 
+    @abstractmethod
+    def get_scorecard(self) -> list[dict]:
+        """Return governance scorecard rows."""
+
 
 class SnowflakeCatalogService(CatalogService):
     """Snowpark-backed catalog service for Streamlit in Snowflake."""
@@ -189,3 +193,29 @@ class SnowflakeCatalogService(CatalogService):
             return []
 
         return [source.strip() for source in str(upstream_sources).split(",") if source.strip()]
+
+    def get_scorecard(self) -> list[dict]:
+        rows = self.session.sql(
+            """
+            SELECT
+                DIMENSION,
+                NUMERATOR,
+                DENOMINATOR,
+                SCORE_PCT,
+                STATUS,
+                DESCRIPTION
+            FROM GOVERNANCE.CATALOG.CATALOG_SCORECARD
+            ORDER BY
+                CASE DIMENSION
+                    WHEN 'OWNED' THEN 1
+                    WHEN 'DEFINED' THEN 2
+                    WHEN 'TRACEABLE' THEN 3
+                    WHEN 'TRUSTED' THEN 4
+                    WHEN 'SECURE' THEN 5
+                    WHEN 'ADOPTED' THEN 6
+                    WHEN 'RECONCILED' THEN 7
+                END
+            """
+        ).collect()
+
+        return [row.as_dict() for row in rows]

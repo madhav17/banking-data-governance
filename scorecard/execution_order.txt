@@ -1,0 +1,2 @@
+snow sql -c avidia -f scorecard/00_create_catalog_scorecard_view.sql
+snow sql -c avidia -f scorecard/01_validate_scorecard.sql

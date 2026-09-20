@@ -89,6 +89,8 @@ From the repository root:
 snow sql -c avidia -f catalog_app/sql/00_permissions.sql
 snow sql -c avidia -f catalog_app/sql/01_create_catalog_view.sql
 snow sql -c avidia -f catalog_app/sql/02_validate_catalog_view.sql
+snow sql -c avidia -f scorecard/00_create_catalog_scorecard_view.sql
+snow sql -c avidia -f scorecard/01_validate_scorecard.sql
 ```
 
 Expected result:
@@ -98,6 +100,9 @@ Expected result:
 - `ANALYTICS.MARTS.DEPOSITS_DAILY` is present
 - certification, DQ, lineage, CDE, classification and usage evidence are visible
   when those prior blocks have been executed
+- `CATALOG_SCORECARD` returns the seven governance dimensions:
+  `OWNED`, `DEFINED`, `TRACEABLE`, `TRUSTED`, `SECURE`, `ADOPTED`,
+  `RECONCILED`
 
 ## Deploy
 
@@ -144,6 +149,7 @@ Snowsight -> Projects -> Streamlit -> AVIDIA_DATA_CATALOG
 4. Point out owner, steward, certification, quality result and usage metrics.
 5. Show the column table with CDE and classification values.
 6. Show upstream sources from the latest lineage snapshot.
+7. Open the `Governance Scorecard` tab and show the seven scorecard rows.
 
 ## Troubleshooting
 

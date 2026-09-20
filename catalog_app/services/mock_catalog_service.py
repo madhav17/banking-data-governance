@@ -189,3 +189,6 @@ class MockCatalogService(CatalogService):
 
     def get_upstream_sources(self, object_fqn: str) -> list[str]:
         return MOCK_OBJECTS[object_fqn]["upstream_sources"]
+
+    def get_scorecard(self) -> list[dict]:
+        return []
