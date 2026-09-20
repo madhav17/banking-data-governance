@@ -1,0 +1,78 @@
+/*==============================================================================
+ AVIDIA BANK - WORKED COLUMN TRACE
+
+ Purpose:
+   Trace the deposit measure CLOSING_BALANCE from DEPOSITS_DAILY back to the
+   RAW source column using native Snowflake column lineage.
+==============================================================================*/
+
+USE ROLE DATA_GOVERNANCE_ADMIN;
+USE WAREHOUSE WH_GOVERNANCE_XS;
+
+-- Native column lineage for the mart deposit measure.
+SELECT
+    DISTANCE,
+    SOURCE_OBJECT_DATABASE || '.' || SOURCE_OBJECT_SCHEMA || '.'
+        || SOURCE_OBJECT_NAME AS SOURCE_OBJECT,
+    SOURCE_COLUMN_NAME AS SOURCE_COLUMN,
+    TARGET_OBJECT_DATABASE || '.' || TARGET_OBJECT_SCHEMA || '.'
+        || TARGET_OBJECT_NAME AS TARGET_OBJECT,
+    TARGET_COLUMN_NAME AS TARGET_COLUMN,
+    SOURCE_DETAILS:origin::VARCHAR AS SOURCE_ORIGIN,
+    TARGET_DETAILS:origin::VARCHAR AS TARGET_ORIGIN,
+    PROCESS:query_id::VARCHAR AS PROCESS_QUERY_ID
+FROM TABLE
+(
+    SNOWFLAKE.CORE.GET_LINEAGE
+    (
+        'ANALYTICS.MARTS.DEPOSITS_DAILY.CLOSING_BALANCE',
+        'COLUMN',
+        'UPSTREAM',
+        5
+    )
+)
+ORDER BY DISTANCE, SOURCE_OBJECT, TARGET_OBJECT;
+
+-- Compact evidence view for the live walkthrough.
+WITH COLUMN_TRACE AS
+(
+    SELECT *
+    FROM TABLE
+    (
+        SNOWFLAKE.CORE.GET_LINEAGE
+        (
+            'ANALYTICS.MARTS.DEPOSITS_DAILY.CLOSING_BALANCE',
+            'COLUMN',
+            'UPSTREAM',
+            5
+        )
+    )
+),
+TRACE_COUNTS AS
+(
+    SELECT
+        COUNT_IF(
+            SOURCE_OBJECT_DATABASE = 'ANALYTICS'
+            AND SOURCE_OBJECT_SCHEMA = 'STAGING'
+            AND SOURCE_OBJECT_NAME = 'STG_ACCOUNT_DAILY_BALANCE'
+            AND SOURCE_COLUMN_NAME = 'CLOSING_BALANCE'
+        ) AS STAGING_COLUMN_EDGES,
+        COUNT_IF(
+            SOURCE_OBJECT_DATABASE = 'RAW'
+            AND SOURCE_OBJECT_SCHEMA = 'BANKING'
+            AND SOURCE_OBJECT_NAME = 'ACCOUNT_DAILY_BALANCE'
+            AND SOURCE_COLUMN_NAME = 'CLOSING_BALANCE'
+        ) AS RAW_COLUMN_EDGES
+    FROM COLUMN_TRACE
+)
+SELECT
+    'ANALYTICS.MARTS.DEPOSITS_DAILY.CLOSING_BALANCE' AS MART_MEASURE,
+    STAGING_COLUMN_EDGES,
+    RAW_COLUMN_EDGES,
+    IFF(
+        STAGING_COLUMN_EDGES > 0
+        AND RAW_COLUMN_EDGES > 0,
+        'PASS',
+        'FAIL'
+    ) AS WORKED_TRACE_STATUS
+FROM TRACE_COUNTS;

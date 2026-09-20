@@ -1,0 +1,10 @@
+snow sql -c avidia -f lineage/00_permissions.sql
+snow sql -c avidia -f lineage/01_create_lineage_tables.sql
+snow sql -c avidia -f lineage/02_native_lineage_queries.sql
+snow sql -c avidia -f lineage/03_seed_external_lineage_fallback.sql
+snow sql -c avidia -f lineage/04_create_lineage_snapshot_task.sql
+snow sql -c avidia -f lineage/05_run_lineage_snapshot.sql
+snow sql -c avidia -f lineage/06_worked_column_trace.sql
+snow sql -c avidia -f lineage/07_impact_analysis.sql
+snow sql -c avidia -f lineage/08_validate_lineage.sql
+snow sql -c avidia -f lineage/09_validations.sql

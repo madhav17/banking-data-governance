@@ -1,0 +1,60 @@
+-- First validation: query native upstream lineage
+
+SELECT
+    DISTANCE,
+
+    SOURCE_OBJECT_DATABASE,
+    SOURCE_OBJECT_SCHEMA,
+    SOURCE_OBJECT_NAME,
+    SOURCE_OBJECT_DOMAIN,
+    SOURCE_COLUMN_NAME,
+
+    TARGET_OBJECT_DATABASE,
+    TARGET_OBJECT_SCHEMA,
+    TARGET_OBJECT_NAME,
+    TARGET_OBJECT_DOMAIN,
+    TARGET_COLUMN_NAME,
+
+    PROCESS
+FROM TABLE(
+    SNOWFLAKE.CORE.GET_LINEAGE(
+        object_name   => 'ANALYTICS.MARTS.DEPOSITS_DAILY',
+        object_domain => 'TABLE',
+        direction     => 'UPSTREAM',
+        max_distance  => 5
+    )
+)
+ORDER BY DISTANCE;
+
+
+
+--Validate downstream lineage separately
+
+SELECT
+    DISTANCE,
+    SOURCE_OBJECT_DATABASE,
+    SOURCE_OBJECT_SCHEMA,
+    SOURCE_OBJECT_NAME,
+    TARGET_OBJECT_DATABASE,
+    TARGET_OBJECT_SCHEMA,
+    TARGET_OBJECT_NAME,
+    PROCESS
+FROM TABLE(
+    SNOWFLAKE.CORE.GET_LINEAGE(
+        object_name   => 'ANALYTICS.MARTS.DEPOSITS_DAILY',
+        object_domain => 'TABLE',
+        direction     => 'DOWNSTREAM',
+        max_distance  => 5
+    )
+)
+ORDER BY DISTANCE;
+
+
+-- Validate your external fallback for Talend & PowerBI
+
+
+SELECT *
+FROM GOVERNANCE.CATALOG.LINEAGE_EDGE_EXTERNAL;
+
+SELECT COUNT(*) AS EXTERNAL_EDGE_COUNT
+FROM GOVERNANCE.CATALOG.LINEAGE_EDGE_EXTERNAL;

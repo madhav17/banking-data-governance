@@ -501,22 +501,23 @@ The implementation uses Snowflake metadata and lineage capabilities where availa
 
 A snapshot table is maintained for reproducible impact analysis.
 
-### External lineage
+### External lineage metadata
 
-The design covers:
+The design covers two metadata-only external endpoint rows:
 
 ```text
-Legacy Talend -> RAW
-MART -> Power BI
+LEGACY_TALEND_DEPOSIT_LOAD -> RAW
+MART -> POWER_BI_DEPOSITS_MODEL
 ```
 
-If external lineage cannot be exercised in the trial environment, the documented fallback is:
+The documented fallback table is:
 
 ```text
 GOVERNANCE.CATALOG.LINEAGE_EDGE_EXTERNAL
 ```
 
-with the relevant registration statements recorded.
+`LEGACY_TALEND_DEPOSIT_LOAD` and `POWER_BI_DEPOSITS_MODEL` are string
+identifiers in that table only. No Talend or Power BI resources are created.
 
 ---
 
@@ -538,7 +539,7 @@ STAGING.STG_CUSTOMER.EMAIL
 MART.CUSTOMER_360.EMAIL
         |
         v
-Power BI consumer
+External BI endpoint metadata
 ```
 
 The impact query should return affected objects together with owner/steward information.
@@ -972,8 +973,8 @@ During implementation:
 - [ ] Column lineage
 - [ ] Upstream lineage
 - [ ] Downstream lineage
-- [ ] Talend external lineage
-- [ ] Power BI external lineage
+- [ ] Talend external endpoint metadata
+- [ ] Power BI external endpoint metadata
 - [ ] Lineage snapshot
 - [ ] Worked deposit trace
 - [ ] Impact analysis
