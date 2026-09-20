@@ -1,0 +1,38 @@
+/*==============================================================================
+ AVIDIA BANK - CERTIFICATION LOG
+
+ Purpose:
+   Persist one audit row per certification attempt.
+==============================================================================*/
+
+USE ROLE DATA_GOVERNANCE_ADMIN;
+USE WAREHOUSE WH_GOVERNANCE_XS;
+USE DATABASE GOVERNANCE;
+USE SCHEMA EVIDENCE;
+
+CREATE TABLE IF NOT EXISTS GOVERNANCE.EVIDENCE.CERTIFICATION_LOG
+(
+    CERTIFICATION_RUN_ID VARCHAR(36) NOT NULL,
+    OBJECT_FQN           VARCHAR(500) NOT NULL,
+
+    REQUESTED_AT         TIMESTAMP_LTZ NOT NULL,
+    REQUESTED_BY         VARCHAR(255),
+
+    OWNER_CHECK          BOOLEAN,
+    STEWARD_CHECK        BOOLEAN,
+    DESCRIPTION_CHECK    BOOLEAN,
+    CDE_CHECK            BOOLEAN,
+    CLASSIFICATION_CHECK BOOLEAN,
+    POLICY_CHECK         BOOLEAN,
+    DQ_CHECK             BOOLEAN,
+
+    OUTCOME              VARCHAR(50) NOT NULL,
+    FAILURE_REASONS      VARCHAR,
+    CERTIFIED_AT         TIMESTAMP_LTZ,
+
+    CONSTRAINT CK_CERTIFICATION_LOG_OUTCOME
+        CHECK (OUTCOME IN ('CERTIFIED', 'REFUSED'))
+)
+COMMENT = 'Audit log for Block 5 CERTIFY(object) certification attempts.';
+
+SHOW TABLES LIKE 'CERTIFICATION_LOG' IN SCHEMA GOVERNANCE.EVIDENCE;

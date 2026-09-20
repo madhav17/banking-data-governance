@@ -1,0 +1,6 @@
+snow sql -c avidia -f certification/00_permissions.sql
+snow sql -c avidia -f certification/01_create_certification_log.sql
+snow sql -c avidia -f certification/02_create_certify_procedure.sql
+snow sql -c avidia -f certification/03_demonstrate_certification.sql
+snow sql -c avidia -f certification/04_validate_certification.sql
+snow sql -c avidia -f certification/05_validations.sql
