@@ -5,7 +5,7 @@
     )
 }}
 
-WITH BALANCE AS (
+WITH BALANCE_SOURCE AS (
     SELECT
         ACCOUNT_ID,
         BUSINESS_DATE,
@@ -20,7 +20,30 @@ WITH BALANCE AS (
     FROM {{ source('staging', 'stg_account_daily_balance') }}
 ),
 
-ACCOUNT AS (
+-- Keep the latest daily balance record for each account/date grain.
+BALANCE AS (
+    SELECT
+        ACCOUNT_ID,
+        BUSINESS_DATE,
+        OPENING_BALANCE,
+        CLOSING_BALANCE,
+        AVAILABLE_BALANCE,
+        CURRENCY,
+        SOURCE_SYSTEM,
+        LOAD_TIMESTAMP,
+        STG_LOADED_AT,
+        STG_UPDATED_AT
+    FROM BALANCE_SOURCE
+    QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY ACCOUNT_ID, BUSINESS_DATE
+        ORDER BY
+            LOAD_TIMESTAMP DESC NULLS LAST,
+            STG_UPDATED_AT DESC NULLS LAST,
+            STG_LOADED_AT DESC NULLS LAST
+    ) = 1
+),
+
+ACCOUNT_SOURCE AS (
     SELECT
         ACCOUNT_ID,
         ACCOUNT_NUMBER,
@@ -32,11 +55,32 @@ ACCOUNT AS (
         ACCOUNT_STATUS,
         CURRENCY AS ACCOUNT_CURRENCY,
         CURRENT_BALANCE,
-        ACCOUNT_TYPE
+        ACCOUNT_TYPE,
+        STG_UPDATED_AT
     FROM {{ source('staging', 'stg_account') }}
 ),
 
-CUSTOMER AS (
+ACCOUNT AS (
+    SELECT
+        ACCOUNT_ID,
+        ACCOUNT_NUMBER,
+        CUSTOMER_ID,
+        PRODUCT_ID,
+        BRANCH_ID,
+        OPEN_DATE,
+        CLOSE_DATE,
+        ACCOUNT_STATUS,
+        ACCOUNT_CURRENCY,
+        CURRENT_BALANCE,
+        ACCOUNT_TYPE
+    FROM ACCOUNT_SOURCE
+    QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY ACCOUNT_ID
+        ORDER BY STG_UPDATED_AT DESC NULLS LAST
+    ) = 1
+),
+
+CUSTOMER_SOURCE AS (
     SELECT
         CUSTOMER_ID,
         CUSTOMER_TYPE,
@@ -44,8 +88,36 @@ CUSTOMER AS (
             BUSINESS_NAME,
             NULLIF(TRIM(CONCAT(COALESCE(FIRST_NAME, ''), ' ', COALESCE(LAST_NAME, ''))), '')
         ) AS CUSTOMER_DISPLAY_NAME,
-        CUSTOMER_STATUS
+        CUSTOMER_STATUS,
+        UPDATED_TIMESTAMP,
+        STG_UPDATED_AT
     FROM {{ source('staging', 'stg_customer') }}
+),
+
+CUSTOMER AS (
+    SELECT
+        CUSTOMER_ID,
+        CUSTOMER_TYPE,
+        CUSTOMER_DISPLAY_NAME,
+        CUSTOMER_STATUS
+    FROM CUSTOMER_SOURCE
+    QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY CUSTOMER_ID
+        ORDER BY
+            UPDATED_TIMESTAMP DESC NULLS LAST,
+            STG_UPDATED_AT DESC NULLS LAST
+    ) = 1
+),
+
+PRODUCT_SOURCE AS (
+    SELECT
+        PRODUCT_ID,
+        PRODUCT_CODE,
+        PRODUCT_NAME,
+        PRODUCT_TYPE,
+        CURRENCY AS PRODUCT_CURRENCY,
+        STG_UPDATED_AT
+    FROM {{ source('staging', 'stg_product') }}
 ),
 
 PRODUCT AS (
@@ -54,8 +126,22 @@ PRODUCT AS (
         PRODUCT_CODE,
         PRODUCT_NAME,
         PRODUCT_TYPE,
-        CURRENCY AS PRODUCT_CURRENCY
-    FROM {{ source('staging', 'stg_product') }}
+        PRODUCT_CURRENCY
+    FROM PRODUCT_SOURCE
+    QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY PRODUCT_ID
+        ORDER BY STG_UPDATED_AT DESC NULLS LAST
+    ) = 1
+),
+
+BRANCH_SOURCE AS (
+    SELECT
+        BRANCH_ID,
+        BRANCH_CODE,
+        BRANCH_NAME,
+        REGION AS BRANCH_REGION,
+        STG_UPDATED_AT
+    FROM {{ source('staging', 'stg_branch') }}
 ),
 
 BRANCH AS (
@@ -63,8 +149,12 @@ BRANCH AS (
         BRANCH_ID,
         BRANCH_CODE,
         BRANCH_NAME,
-        REGION AS BRANCH_REGION
-    FROM {{ source('staging', 'stg_branch') }}
+        BRANCH_REGION
+    FROM BRANCH_SOURCE
+    QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY BRANCH_ID
+        ORDER BY STG_UPDATED_AT DESC NULLS LAST
+    ) = 1
 ),
 
 FINAL AS (
