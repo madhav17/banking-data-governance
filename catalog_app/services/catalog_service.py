@@ -76,7 +76,7 @@ class SnowflakeCatalogService(CatalogService):
 
     @staticmethod
     def _display(value) -> str:
-        if value is None:
+        if value is None or str(value).strip() == "":
             return "NOT AVAILABLE"
         return str(value)
 

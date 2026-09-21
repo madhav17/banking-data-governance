@@ -79,6 +79,31 @@ def render_scorecard(service: SnowflakeCatalogService) -> None:
     )
 
 
+def matches_certification_filter(row: dict, selected_filter: str) -> bool:
+    certification = str(row.get("certification") or "").strip().upper()
+
+    if selected_filter == "All":
+        return True
+
+    if selected_filter == "Certified":
+        return certification == "CERTIFIED"
+
+    return certification != "CERTIFIED"
+
+
+def matches_classification_filter(row: dict, selected_filter: str) -> bool:
+    classification = str(row.get("classification") or "").strip().upper()
+    is_classified = classification not in ("", "NOT CLASSIFIED", "NOT AVAILABLE")
+
+    if selected_filter == "All":
+        return True
+
+    if selected_filter == "Classified":
+        return is_classified
+
+    return not is_classified
+
+
 def main() -> None:
     st.set_page_config(page_title="Avidia Data Catalog", layout="wide")
 
@@ -117,11 +142,11 @@ def main() -> None:
         )
         certification_filter = filter_col_3.selectbox(
             "Certification",
-            ["All"] + sorted({row["certification"] for row in all_objects}),
+            ["All", "Certified", "Not Certified"],
         )
         classification_filter = filter_col_4.selectbox(
             "Classification",
-            ["All"] + sorted({row["classification"] for row in all_objects}),
+            ["All", "Classified", "Not Classified"],
         )
 
         filtered_results = [
@@ -129,8 +154,8 @@ def main() -> None:
             for row in search_results
             if (database_filter == "All" or row["database"] == database_filter)
             and (schema_filter == "All" or row["schema"] == schema_filter)
-            and (certification_filter == "All" or row["certification"] == certification_filter)
-            and (classification_filter == "All" or row["classification"] == classification_filter)
+            and matches_certification_filter(row, certification_filter)
+            and matches_classification_filter(row, classification_filter)
         ]
 
         with st.expander("Search Results", expanded=bool(search_query)):
