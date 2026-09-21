@@ -54,6 +54,18 @@ GRANT CREATE VIEW
 ON SCHEMA GOVERNANCE.CATALOG
 TO ROLE DATA_GOVERNANCE_ADMIN;
 
+-- The catalog view uses CERTIFICATION_LOG as a fallback evidence source for
+-- objects certified by GOVERNANCE.EVIDENCE.CERTIFY(object). CERTIFY applies the
+-- native tag directly and writes the log; it does not store certification in
+-- TAG_ASSIGNMENT.
+GRANT USAGE
+ON SCHEMA GOVERNANCE.EVIDENCE
+TO ROLE DATA_GOVERNANCE_ADMIN;
+
+GRANT SELECT
+ON ALL TABLES IN SCHEMA GOVERNANCE.EVIDENCE
+TO ROLE DATA_GOVERNANCE_ADMIN;
+
 -- Existing lineage work grants SNOWFLAKE.GOVERNANCE_VIEWER to
 -- DATA_GOVERNANCE_ADMIN for ACCESS_HISTORY / QUERY_HISTORY evidence. If this
 -- check returns no row, rerun lineage/00_permissions.sql before creating the
