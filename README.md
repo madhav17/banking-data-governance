@@ -32,13 +32,6 @@ Implemented:
 - Streamlit data catalog backed by `GOVERNANCE.CATALOG.V_STREAMLIT_CATALOG`.
 - Seven-dimension catalog scorecard backed by `GOVERNANCE.CATALOG.CATALOG_SCORECARD`.
 
-Not implemented in this repository at this time:
-
-- Cortex-generated description drafting and approval.
-- A separate "what is coming" roadmap SQL block.
-- Production scheduling of the dbt Project.
-- Real Talend or Power BI integration. The required external lineage endpoints are stored as metadata strings only.
-
 ## Repository Structure
 
 ```text

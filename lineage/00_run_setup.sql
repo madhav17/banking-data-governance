@@ -1,0 +1,10 @@
+!source lineage/00_permissions.sql
+!source lineage/01_create_lineage_tables.sql
+!source lineage/02_native_lineage_queries.sql
+!source lineage/03_seed_external_lineage_fallback.sql
+!source lineage/04_create_lineage_snapshot_task.sql
+!source lineage/05_run_lineage_snapshot.sql
+!source lineage/06_worked_column_trace.sql
+!source lineage/07_impact_analysis.sql
+!source lineage/08_validate_lineage.sql
+!source lineage/09_validations.sql
