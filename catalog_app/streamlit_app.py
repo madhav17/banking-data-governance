@@ -138,7 +138,6 @@ def render_scorecard(service: SnowflakeCatalogService) -> None:
                 "Denominator": row.get("DENOMINATOR"),
                 "Measures": row.get("DESCRIPTION"),
                 "Evidence": details.get("evidence", "Defined in GOVERNANCE.CATALOG.CATALOG_SCORECARD."),
-                "Gap Action": details.get("gap_action", "Inspect the scorecard validation SQL."),
             }
         )
 
@@ -154,7 +153,6 @@ def render_scorecard(service: SnowflakeCatalogService) -> None:
             "Denominator": "Denominator",
             "Measures": "Measures",
             "Evidence": "Evidence",
-            "Gap Action": "Gap Action",
         },
     )
 
@@ -175,6 +173,8 @@ def render_scorecard(service: SnowflakeCatalogService) -> None:
 
             if row.get("STATUS") != "PASS":
                 st.warning(details.get("gap_action", "Inspect the scorecard validation SQL."))
+            else:
+                st.success("No action required.")
 
 
 def matches_certification_filter(row: dict, selected_filter: str) -> bool:
