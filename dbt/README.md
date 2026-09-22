@@ -37,7 +37,11 @@ dbt/
 │       ├── loan_portfolio.sql
 │       └── README.md
 ├── tests/
-│   └── assert_deposits_daily_unique_account_date.sql
+│   ├── assert_customer_360_counts_valid.sql
+│   ├── assert_deposits_daily_active_flag_consistent.sql
+│   ├── assert_deposits_daily_unique_account_date.sql
+│   ├── assert_loan_portfolio_collateral_metrics_valid.sql
+│   └── assert_loan_portfolio_ltv_consistent.sql
 ├── analyses/
 ├── macros/
 ├── seeds/
@@ -77,7 +81,13 @@ The model queries return the complete desired dataset on each run. There are no 
 - `DEPOSITS_DAILY.ACCOUNT_ID` and `BUSINESS_DATE` are not null.
 - `LOAN_PORTFOLIO.LOAN_ID` is not null and unique.
 
-`tests/assert_deposits_daily_unique_account_date.sql` checks the composite grain of `DEPOSITS_DAILY` without requiring an external package such as `dbt-utils`.
+The singular tests in `tests/` check mart business rules without requiring an external package such as `dbt-utils`:
+
+- `assert_deposits_daily_unique_account_date.sql` validates the composite grain of `DEPOSITS_DAILY`.
+- `assert_deposits_daily_active_flag_consistent.sql` validates the derived active-account flag.
+- `assert_customer_360_counts_valid.sql` validates nonnegative counts and active-count bounds.
+- `assert_loan_portfolio_collateral_metrics_valid.sql` validates collateral count/value and LTV null behavior.
+- `assert_loan_portfolio_ltv_consistent.sql` validates the loan-to-value calculation.
 
 ## Local Environment Variables
 
@@ -113,11 +123,11 @@ export MARTS_SCHEMA="MARTS"
 From the repository root:
 
 ```sh
-dbt --project-dir dbt --profiles-dir dbt deps
-dbt --project-dir dbt --profiles-dir dbt debug
-dbt --project-dir dbt --profiles-dir dbt parse
-dbt --project-dir dbt --profiles-dir dbt compile --target dev
-dbt --project-dir dbt --profiles-dir dbt build --target dev
+dbt deps --project-dir dbt --profiles-dir dbt
+dbt debug --project-dir dbt --profiles-dir dbt
+dbt parse --project-dir dbt --profiles-dir dbt
+dbt compile --project-dir dbt --profiles-dir dbt --target dev
+dbt build --project-dir dbt --profiles-dir dbt --target dev
 ```
 
 SQLFluff:

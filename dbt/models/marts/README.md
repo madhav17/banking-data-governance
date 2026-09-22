@@ -106,13 +106,15 @@ Where collateral values are available, derived exposure metrics such as loan-to-
 
 ## Tests
 
-`schema.yml` contains basic dbt tests for primary model identifiers. The composite `DEPOSITS_DAILY` grain is checked by the singular test:
+`schema.yml` contains basic dbt tests for primary model identifiers. Singular tests in `dbt/tests/` validate:
 
-```text
-dbt/tests/assert_deposits_daily_unique_account_date.sql
-```
+- the composite `DEPOSITS_DAILY` grain;
+- the derived `DEPOSITS_DAILY.IS_ACTIVE_ACCOUNT` flag;
+- nonnegative `CUSTOMER_360` activity counts and active-count bounds;
+- `LOAN_PORTFOLIO` collateral metric validity;
+- `LOAN_PORTFOLIO.LOAN_TO_VALUE_RATIO` calculation consistency.
 
-This avoids adding an external package solely for combination uniqueness.
+These avoid adding an external package solely for combination uniqueness or simple business-rule assertions.
 
 ## Governance Metadata
 

@@ -41,7 +41,7 @@ Implemented:
 ├── transformations/staging/       # STAGING schema/table DDL and RAW -> STAGING merge scripts
 ├── dbt/                           # dbt Core / Snowflake dbt Project for MARTS
 │   ├── models/marts/              # CUSTOMER_360, DEPOSITS_DAILY, LOAN_PORTFOLIO
-│   ├── tests/                     # Singular dbt test for DEPOSITS_DAILY grain
+│   ├── tests/                     # Singular dbt tests for mart grains and business rules
 │   ├── profiles.yml               # dbt Core profile using environment variables
 │   └── dbt_projects_profiles.yml  # Native Snowflake dbt Project profile
 ├── dbt_setup/                     # Snowflake privileges for native dbt Project deployment
@@ -57,7 +57,7 @@ Implemented:
 ├── data/                          # Generated banking data and sealed sensitive-column truth set
 ├── evidence/                      # Final evidence pack and supporting evidence exports
 ├── roadmap/                       # 12-month governance roadmap PDF
-├── start_fresh/                   # Account reset helper for a clean rebuild
+├── start_fresh/                   # Diagnostic helper for warehouse/grant checks
 ├── HOURS.md                       # Candidate time log
 └── AI_DISCLOSURE.md               # AI assistance disclosure
 ```
@@ -170,10 +170,10 @@ The dbt project transforms `ANALYTICS.STAGING` into three business-oriented MART
 Local dbt validation:
 
 ```sh
-dbt --project-dir dbt --profiles-dir dbt deps
-dbt --project-dir dbt --profiles-dir dbt parse
-dbt --project-dir dbt --profiles-dir dbt compile --target dev
-dbt --project-dir dbt --profiles-dir dbt build --target dev
+dbt deps --project-dir dbt --profiles-dir dbt
+dbt parse --project-dir dbt --profiles-dir dbt
+dbt compile --project-dir dbt --profiles-dir dbt --target dev
+dbt build --project-dir dbt --profiles-dir dbt --target dev
 ```
 
 Native Snowflake dbt Project deployment:
@@ -402,7 +402,7 @@ scorecard/00_run_setup.sql
 Streamlit deploy
 ```
 
-`start_fresh/clean.sql` can be used to drop `RAW`, `ANALYTICS` and `GOVERNANCE` when you intentionally want to reset the Snowflake account and rebuild from zero. It should not be part of normal CI/CD.
+`start_fresh/clean.sql` is currently a diagnostic helper that shows the governance warehouse and its grants. It does not drop project databases or revoke grants.
 
 ## GitHub Actions
 
@@ -457,4 +457,4 @@ Suggested live flow:
 - The Streamlit app is read-only and metadata-only; it does not expose sensitive banking records.
 - `evidence/Avidia_Evidence_Pack_Formatted.pdf` contains the formatted evidence pack.
 - `roadmap/Avidia_Snowflake_12_Month_Governance_Roadmap.pdf` contains the roadmap deliverable.
-- `start_fresh/clean.sql` drops the project databases for a clean rebuild. It uses `ACCOUNTADMIN` and should be run only when you intentionally want to reset the demo account.
+- `start_fresh/clean.sql` is diagnostic only in the current repo state; create a separate, explicit destructive reset script if a full account cleanup is needed.
