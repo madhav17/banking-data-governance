@@ -61,7 +61,6 @@ scorecard/
 ├── 00_run_setup.sql
 ├── 00_create_catalog_scorecard_view.sql
 ├── 01_validate_scorecard.sql
-├── execution_order.txt
 └── README.md
 ```
 
@@ -73,7 +72,7 @@ Run after DQ, lineage, certification and the Streamlit catalog view have been pr
 snow sql -c avidia -f scorecard/00_run_setup.sql
 ```
 
-`00_run_setup.sql` sources the view creation and validation scripts. `execution_order.txt` is a short command reference for running the two scripts individually.
+`00_run_setup.sql` sources the view creation and validation scripts. Run the two individual files only when debugging a specific scorecard step.
 
 ## Expected Output
 

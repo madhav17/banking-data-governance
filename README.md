@@ -55,7 +55,7 @@ Implemented:
 ├── catalog_app/                   # Existing Streamlit catalog application
 ├── .github/workflows/             # Manual dbt CI, dbt deploy and Streamlit deploy workflows
 ├── data/                          # Generated banking data and sealed sensitive-column truth set
-├── evidence/                      # Final evidence pack PDF
+├── evidence/                      # Final evidence pack and supporting evidence exports
 ├── roadmap/                       # 12-month governance roadmap PDF
 ├── start_fresh/                   # Account reset helper for a clean rebuild
 ├── HOURS.md                       # Candidate time log
@@ -139,6 +139,12 @@ Load and validate RAW:
 ```sh
 snow sql -c avidia -f setup/08_load_raw.sql
 snow sql -c avidia -f setup/09_validate_raw.sql
+```
+
+Shortcut after the upload script has finished:
+
+```sh
+snow sql -c avidia -f setup/01_run_setup.sql
 ```
 
 ### 2. STAGING Layer
@@ -382,8 +388,7 @@ For a fresh demo account, the safest rebuild order is:
 ```text
 setup/00_run_setup.sql
 scripts/upload_raw_to_stage.sh
-setup/08_load_raw.sql
-setup/09_validate_raw.sql
+setup/01_run_setup.sql
 transformations/staging/00_run_staging.sql
 dbt build or native dbt project execution
 metadata/00_run_setup.sql
