@@ -26,7 +26,7 @@ snow stage copy data/sealed_sensitive_columns.json \
         ↓
 09_create_review_procedures.sql
         ↓
-compare_sensitive_sealed_list.sql
+compare_senstive_sealed_list.sql
 
         ↓
    MANUAL STEWARD REVIEW
@@ -35,7 +35,7 @@ APPROVE_CLASSIFICATION(...)
 REJECT_CLASSIFICATION(...)
 
         ↓
- -- should be updated on the response of compare_sensitive_sealed_list.sql
+ -- should be updated on the response of compare_senstive_sealed_list.sql
 approve_reject_classification_based_on_list.sql
 
         ↓

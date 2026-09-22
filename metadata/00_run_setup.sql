@@ -28,6 +28,6 @@
 !source metadata/23_validate_cde_tags.sql
 !source metadata/24_validate_metadata_foundation.sql
 -- run after once mart layer is created
---!source metadata/25_seed_mart_tag_assignments.sql
---!source metadata/07_apply_tags.sql
---!source metadata/26_verify_mart_metadata.sql
+!source metadata/25_seed_mart_tag_assignments.sql
+!source metadata/07_apply_tags.sql
+!source metadata/26_verify_mart_metadata.sql

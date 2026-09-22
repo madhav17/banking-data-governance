@@ -466,9 +466,20 @@ COMMENT ON TABLE CDE_REGISTRY IS
 'Registry identifying Critical Data Elements and governance accountability';
 
 
+-- ============================================================================
+-- 9. POST-CREATE TABLE GRANTS
+-- ============================================================================
+-- metadata/permissions.sql runs before this file in metadata/00_run_setup.sql.
+-- Grants that reference specific tables must therefore live here, after the
+-- tables exist, so a fresh rebuild works cleanly.
+
+GRANT SELECT
+ON TABLE GOVERNANCE.CATALOG.DATA_DICTIONARY
+TO ROLE DATA_ENGINEER;
+
 
 -- ============================================================================
--- 9. VALIDATION
+-- 10. VALIDATION
 -- ============================================================================
 
 SHOW TABLES IN SCHEMA GOVERNANCE.CATALOG;

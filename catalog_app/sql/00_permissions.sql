@@ -13,6 +13,12 @@
 
 USE ROLE SECURITYADMIN;
 
+CREATE ROLE IF NOT EXISTS CATALOG_APP_ROLE
+    COMMENT = 'Deploys and owns the Avidia Data Catalog Streamlit application';
+
+GRANT ROLE CATALOG_APP_ROLE
+TO USER SVC_PIPELINE;
+
 GRANT USAGE
 ON DATABASE GOVERNANCE
 TO ROLE CATALOG_APP_ROLE;
@@ -23,6 +29,19 @@ TO ROLE CATALOG_APP_ROLE;
 
 GRANT USAGE
 ON WAREHOUSE WH_GOVERNANCE_XS
+TO ROLE CATALOG_APP_ROLE;
+
+-- Required by snow streamlit deploy. Without CREATE STREAMLIT the GitHub
+-- Streamlit CI/CD workflow can connect successfully but fails when it checks
+-- or creates GOVERNANCE.CATALOG.AVIDIA_DATA_CATALOG.
+GRANT CREATE STREAMLIT
+ON SCHEMA GOVERNANCE.CATALOG
+TO ROLE CATALOG_APP_ROLE;
+
+-- Snowflake CLI uses the configured stage in catalog_app/snowflake.yml to
+-- upload application artifacts.
+GRANT CREATE STAGE
+ON SCHEMA GOVERNANCE.CATALOG
 TO ROLE CATALOG_APP_ROLE;
 
 -- The catalog view reads MART metadata and tag references from
