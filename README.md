@@ -55,9 +55,11 @@ Implemented:
 ├── catalog_app/                   # Existing Streamlit catalog application
 ├── .github/workflows/             # Manual dbt CI, dbt deploy and Streamlit deploy workflows
 ├── data/                          # Generated banking data and sealed sensitive-column truth set
-├── evidence/                      # Placeholder for final evidence screenshots/exports
-├── HOURS.md                       # Time log placeholder
-└── AI_DISCLOSURE.md               # AI assistance disclosure placeholder
+├── evidence/                      # Final evidence pack PDF
+├── roadmap/                       # 12-month governance roadmap PDF
+├── start_fresh/                   # Account reset helper for a clean rebuild
+├── HOURS.md                       # Candidate time log
+└── AI_DISCLOSURE.md               # AI assistance disclosure
 ```
 
 ## Snowflake Logical Layout
@@ -187,7 +189,7 @@ The deployment creates or updates `ANALYTICS.DBT_PROJECTS.AVIDIA_BANK_DBT`. It d
 
 ### 4. Metadata Foundation
 
-Run the metadata foundation after RAW/STAGING exist and before the later governance blocks:
+Run the metadata foundation after RAW, STAGING and the dbt MARTS exist:
 
 ```sh
 snow sql -c avidia -f metadata/00_run_setup.sql
@@ -202,14 +204,7 @@ This block creates and populates:
 - data dictionary comments
 - banking glossary and glossary links
 - CDE registry and CDE tag synchronization
-
-After the MART layer exists, run the MART metadata assignment scripts:
-
-```sh
-snow sql -c avidia -f metadata/25_seed_mart_tag_assignments.sql
-snow sql -c avidia -f metadata/07_apply_tags.sql
-snow sql -c avidia -f metadata/26_verify_mart_metadata.sql
-```
+- MART owner, steward, CDE and certification-support metadata
 
 ### 5. Classification And Protection
 
@@ -271,13 +266,10 @@ Exactly six checks are implemented:
 Run:
 
 ```sh
-snow sql -c avidia -f dq/00_permissions.sql
-snow sql -c avidia -f dq/01_create_dq_result.sql
-snow sql -c avidia -f dq/02_create_custom_dmfs.sql
-snow sql -c avidia -f dq/03_attach_dq_checks.sql
-snow sql -c avidia -f dq/04_run_and_persist_dq.sql
-snow sql -c avidia -f dq/05_validate_dq_results.sql
+snow sql -c avidia -f dq/00_run_setup.sql
 ```
+
+`dq/00_run_setup.sql` sources the permission, `DQ_RESULT`, custom DMF, attachment, execution/persistence and validation scripts in order.
 
 Results are persisted historically in `GOVERNANCE.DQ.DQ_RESULT`.
 
@@ -298,16 +290,10 @@ Supporting sources include `ACCOUNT`, `CUSTOMER`, `PRODUCT` and `BRANCH`.
 Run:
 
 ```sh
-snow sql -c avidia -f lineage/00_permissions.sql
-snow sql -c avidia -f lineage/01_create_lineage_tables.sql
-snow sql -c avidia -f lineage/02_native_lineage_queries.sql
-snow sql -c avidia -f lineage/03_seed_external_lineage_fallback.sql
-snow sql -c avidia -f lineage/04_create_lineage_snapshot_task.sql
-snow sql -c avidia -f lineage/05_run_lineage_snapshot.sql
-snow sql -c avidia -f lineage/06_worked_column_trace.sql
-snow sql -c avidia -f lineage/07_impact_analysis.sql
-snow sql -c avidia -f lineage/08_validate_lineage.sql
+snow sql -c avidia -f lineage/00_run_setup.sql
 ```
+
+`lineage/00_run_setup.sql` sources native lineage, external fallback metadata, task/snapshot, worked trace, impact-analysis and validation scripts.
 
 `GOVERNANCE.CATALOG.LINEAGE_EDGE_EXTERNAL` contains exactly two metadata-only rows:
 
@@ -335,12 +321,10 @@ Gates:
 Run:
 
 ```sh
-snow sql -c avidia -f certification/00_permissions.sql
-snow sql -c avidia -f certification/01_create_certification_log.sql
-snow sql -c avidia -f certification/02_create_certify_procedure.sql
-snow sql -c avidia -f certification/03_demonstrate_certification.sql
-snow sql -c avidia -f certification/04_validate_certification.sql
+snow sql -c avidia -f certification/00_run_setup.sql
 ```
+
+`certification/00_run_setup.sql` sources permissions, log creation, procedure creation, demonstration and validation helpers.
 
 Expected demonstration:
 
@@ -358,8 +342,7 @@ OWNED, DEFINED, TRACEABLE, TRUSTED, SECURE, ADOPTED, RECONCILED
 Run:
 
 ```sh
-snow sql -c avidia -f scorecard/00_create_catalog_scorecard_view.sql
-snow sql -c avidia -f scorecard/01_validate_scorecard.sql
+snow sql -c avidia -f scorecard/00_run_setup.sql
 ```
 
 The scorecard is exposed to Streamlit through `GOVERNANCE.CATALOG.CATALOG_SCORECARD`.
@@ -375,9 +358,7 @@ GOVERNANCE.CATALOG.AVIDIA_DATA_CATALOG
 Prepare the backing view and validate it:
 
 ```sh
-snow sql -c avidia -f catalog_app/sql/00_permissions.sql
-snow sql -c avidia -f catalog_app/sql/01_create_catalog_view.sql
-snow sql -c avidia -f catalog_app/sql/02_validate_catalog_view.sql
+snow sql -c avidia -f catalog_app/sql/00_run_setup.sql
 ```
 
 Deploy:
@@ -393,6 +374,30 @@ The app reads:
 - `GOVERNANCE.CATALOG.CATALOG_SCORECARD`
 
 It does not execute DQ, lineage, certification or classification workflows.
+
+## Clean Rebuild Order
+
+For a fresh demo account, the safest rebuild order is:
+
+```text
+setup/00_run_setup.sql
+scripts/upload_raw_to_stage.sh
+setup/08_load_raw.sql
+setup/09_validate_raw.sql
+transformations/staging/00_run_staging.sql
+dbt build or native dbt project execution
+metadata/00_run_setup.sql
+classification scripts
+protection scripts
+dq/00_run_setup.sql
+lineage/00_run_setup.sql
+certification/00_run_setup.sql
+catalog_app/sql/00_run_setup.sql
+scorecard/00_run_setup.sql
+Streamlit deploy
+```
+
+`start_fresh/clean.sql` can be used to drop `RAW`, `ANALYTICS` and `GOVERNANCE` when you intentionally want to reset the Snowflake account and rebuild from zero. It should not be part of normal CI/CD.
 
 ## GitHub Actions
 
@@ -445,4 +450,6 @@ Suggested live flow:
 - Account Usage views can lag, so ACCESS_HISTORY, QUERY_HISTORY and OBJECT_DEPENDENCIES evidence may not appear immediately after scripts run.
 - Native lineage visibility depends on Snowflake lineage support and query history in the trial account.
 - The Streamlit app is read-only and metadata-only; it does not expose sensitive banking records.
-- `HOURS.md`, `AI_DISCLOSURE.md` and `evidence/` are placeholders for final packaging materials.
+- `evidence/Avidia_Evidence_Pack_Formatted.pdf` contains the formatted evidence pack.
+- `roadmap/Avidia_Snowflake_12_Month_Governance_Roadmap.pdf` contains the roadmap deliverable.
+- `start_fresh/clean.sql` drops the project databases for a clean rebuild. It uses `ACCOUNTADMIN` and should be run only when you intentionally want to reset the demo account.

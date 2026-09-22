@@ -80,13 +80,13 @@ Missing dates on either side are treated as failures.
 
 ```text
 dq/
+├── 00_run_setup.sql
 ├── 00_permissions.sql
 ├── 01_create_dq_result.sql
 ├── 02_create_custom_dmfs.sql
 ├── 03_attach_dq_checks.sql
 ├── 04_run_and_persist_dq.sql
 ├── 05_validate_dq_results.sql
-├── execution_order.txt
 └── README.md
 ```
 
@@ -95,13 +95,10 @@ dq/
 Run from the repository root:
 
 ```sh
-snow sql -c avidia -f dq/00_permissions.sql
-snow sql -c avidia -f dq/01_create_dq_result.sql
-snow sql -c avidia -f dq/02_create_custom_dmfs.sql
-snow sql -c avidia -f dq/03_attach_dq_checks.sql
-snow sql -c avidia -f dq/04_run_and_persist_dq.sql
-snow sql -c avidia -f dq/05_validate_dq_results.sql
+snow sql -c avidia -f dq/00_run_setup.sql
 ```
+
+`00_run_setup.sql` sources the individual files in the order shown above. You can still run the individual files manually when debugging a specific DQ step.
 
 ## Permission Model
 

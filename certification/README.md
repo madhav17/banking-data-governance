@@ -95,29 +95,27 @@ This object naturally lacks the complete six-dimension DQ evidence required for 
 
 ```text
 certification/
+├── 00_run_setup.sql
 ├── 00_permissions.sql
 ├── 01_create_certification_log.sql
 ├── 02_create_certify_procedure.sql
 ├── 03_demonstrate_certification.sql
 ├── 04_validate_certification.sql
 ├── 05_validations.sql
-├── execution_order.txt
 └── README.md
 ```
 
-`05_validations.sql` is an additional validation helper. The main execution order uses files `00` through `04`.
+`05_validations.sql` is an additional validation helper and is included by `00_run_setup.sql`.
 
 ## Execution Order
 
 Run from the repository root:
 
 ```sh
-snow sql -c avidia -f certification/00_permissions.sql
-snow sql -c avidia -f certification/01_create_certification_log.sql
-snow sql -c avidia -f certification/02_create_certify_procedure.sql
-snow sql -c avidia -f certification/03_demonstrate_certification.sql
-snow sql -c avidia -f certification/04_validate_certification.sql
+snow sql -c avidia -f certification/00_run_setup.sql
 ```
+
+`00_run_setup.sql` sources permissions, log creation, procedure creation, demonstration and both validation scripts. Run individual files only when debugging a specific certification step.
 
 ## Demonstration Script
 

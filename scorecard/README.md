@@ -58,6 +58,7 @@ Scores are not hard-coded. They are derived from existing project metadata and e
 
 ```text
 scorecard/
+├── 00_run_setup.sql
 ├── 00_create_catalog_scorecard_view.sql
 ├── 01_validate_scorecard.sql
 ├── execution_order.txt
@@ -69,9 +70,10 @@ scorecard/
 Run after DQ, lineage, certification and the Streamlit catalog view have been prepared:
 
 ```sh
-snow sql -c avidia -f scorecard/00_create_catalog_scorecard_view.sql
-snow sql -c avidia -f scorecard/01_validate_scorecard.sql
+snow sql -c avidia -f scorecard/00_run_setup.sql
 ```
+
+`00_run_setup.sql` sources the view creation and validation scripts. `execution_order.txt` is a short command reference for running the two scripts individually.
 
 ## Expected Output
 

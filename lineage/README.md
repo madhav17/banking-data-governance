@@ -115,6 +115,7 @@ DEPOSITS_DAILY -> Power BI endpoint
 
 ```text
 lineage/
+├── 00_run_setup.sql
 ├── 00_permissions.sql
 ├── 01_create_lineage_tables.sql
 ├── 02_native_lineage_queries.sql
@@ -125,27 +126,20 @@ lineage/
 ├── 07_impact_analysis.sql
 ├── 08_validate_lineage.sql
 ├── 09_validations.sql
-├── execution_order.txt
 └── README.md
 ```
 
-`09_validations.sql` is an additional validation helper. The core execution order ends at `08_validate_lineage.sql`.
+`09_validations.sql` is an additional validation helper and is included by `00_run_setup.sql`.
 
 ## Execution Order
 
 Run from the repository root:
 
 ```sh
-snow sql -c avidia -f lineage/00_permissions.sql
-snow sql -c avidia -f lineage/01_create_lineage_tables.sql
-snow sql -c avidia -f lineage/02_native_lineage_queries.sql
-snow sql -c avidia -f lineage/03_seed_external_lineage_fallback.sql
-snow sql -c avidia -f lineage/04_create_lineage_snapshot_task.sql
-snow sql -c avidia -f lineage/05_run_lineage_snapshot.sql
-snow sql -c avidia -f lineage/06_worked_column_trace.sql
-snow sql -c avidia -f lineage/07_impact_analysis.sql
-snow sql -c avidia -f lineage/08_validate_lineage.sql
+snow sql -c avidia -f lineage/00_run_setup.sql
 ```
+
+`00_run_setup.sql` sources the individual lineage scripts from permissions through validations. Run individual files only when you need to isolate a lineage setup or evidence step.
 
 ## Required Role
 

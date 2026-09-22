@@ -61,10 +61,10 @@ catalog_app/
 │   ├── catalog_service.py
 │   └── mock_catalog_service.py
 ├── sql/
+│   ├── 00_run_setup.sql
 │   ├── 00_permissions.sql
 │   ├── 01_create_catalog_view.sql
-│   ├── 02_validate_catalog_view.sql
-│   └── execution_order.txt
+│   └── 02_validate_catalog_view.sql
 └── README.md
 ```
 
@@ -130,11 +130,8 @@ The app uses Snowflake warehouse runtime and does not require Snowpark Container
 Run from the repository root:
 
 ```sh
-snow sql -c avidia -f catalog_app/sql/00_permissions.sql
-snow sql -c avidia -f catalog_app/sql/01_create_catalog_view.sql
-snow sql -c avidia -f catalog_app/sql/02_validate_catalog_view.sql
-snow sql -c avidia -f scorecard/00_create_catalog_scorecard_view.sql
-snow sql -c avidia -f scorecard/01_validate_scorecard.sql
+snow sql -c avidia -f catalog_app/sql/00_run_setup.sql
+snow sql -c avidia -f scorecard/00_run_setup.sql
 ```
 
 Expected result:
