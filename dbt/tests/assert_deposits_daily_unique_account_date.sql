@@ -6,4 +6,5 @@ FROM {{ ref('deposits_daily') }}
 GROUP BY
     ACCOUNT_ID,
     BUSINESS_DATE
-HAVING COUNT(*) > 1
+HAVING
+    COUNT(*) > 1
